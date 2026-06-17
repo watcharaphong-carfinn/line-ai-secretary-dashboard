@@ -50,7 +50,6 @@ jobs:
             --cpu=1 \
             --min-instances=0 \
             --max-instances=2 \
-            --service-account=${{ secrets.GCP_RUNTIME_SA }} \
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --quiet
 
