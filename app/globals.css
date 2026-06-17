@@ -19,6 +19,16 @@ body {
   font-family: 'Inter', 'Noto Sans Thai', system-ui, sans-serif;
 }
 
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+* { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
