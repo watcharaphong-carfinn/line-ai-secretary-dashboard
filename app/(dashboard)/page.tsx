@@ -1,58 +1,62 @@
 "use client";
+import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
-// ── Mock data ────────────────────────────────────────────────────────────────
-const trendData = [
-  { day: "9 มิ.ย.", close: 18.4, approved: 22.1 },
-  { day: "10 มิ.ย.", close: 21.2, approved: 25.8 },
-  { day: "11 มิ.ย.", close: 15.6, approved: 19.4 },
-  { day: "12 มิ.ย.", close: 24.8, approved: 28.3 },
-  { day: "13 มิ.ย.", close: 22.1, approved: 26.7 },
-  { day: "14 มิ.ย.", close: 19.3, approved: 24.5 },
-  { day: "15 มิ.ย.", close: 26.7, approved: 31.2 },
-  { day: "16 มิ.ย.", close: 23.4, approved: 28.9 },
-];
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface BankEntry { close: number; approved: number }
+interface StatsData {
+  lastSync: string | null;
+  today:        { close: number; approved: number; banks: Record<string, BankEntry> };
+  yesterday:    { close: number; approved: number };
+  currentMonth: { close: number; approved: number; banks: Record<string, BankEntry> };
+  prevMonth:    { close: number; approved: number };
+  dailyTrend:   { label: string; close: number | null; approved: number | null }[];
+  monthlyTrend: { label: string; yearBE: number; close: number | null; approved: number | null }[];
+}
 
-const yoyData = [
-  { month: "ม.ค.", y2568: 42, y2569: 48 },
-  { month: "ก.พ.", y2568: 38, y2569: 45 },
-  { month: "มี.ค.", y2568: 51, y2569: 58 },
-  { month: "เม.ย.", y2568: 44, y2569: 52 },
-  { month: "พ.ค.", y2568: 56, y2569: 63 },
-  { month: "มิ.ย.", y2568: 48, y2569: 55 },
-];
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(val: number): string {
+  if (val >= 1_000_000) return `฿${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000)     return `฿${(val / 1_000).toFixed(0)}K`;
+  return `฿${val.toLocaleString()}`;
+}
 
-const bankData = [
-  { bank: "กสิกรไทย", amount: 186.4, cases: 142, rate: 86 },
-  { bank: "ไทยพาณิชย์", amount: 164.8, cases: 128, rate: 82 },
-  { bank: "กรุงไทย", amount: 148.2, cases: 115, rate: 79 },
-  { bank: "กรุงเทพ", amount: 132.6, cases: 103, rate: 77 },
-  { bank: "ทหารไทยธนชาต", amount: 118.9, cases: 94, rate: 75 },
-];
+function fmtM(val: number): number {
+  return Math.round((val / 1_000_000) * 10) / 10;
+}
 
-const activities = [
-  { time: "14:40", event: "ซิงค์ข้อมูลธนาคารเสร็จสิ้น", type: "success", user: "system" },
-  { time: "14:32", event: "อนุมัติสินเชื่อ LN-24817 · ฿1.85M", type: "success", user: "นพดล" },
-  { time: "14:18", event: "ลูกค้าใหม่ยื่นเอกสาร #8293", type: "info", user: "สาขากรุงเทพ" },
-  { time: "13:55", event: "ปฏิเสธสินเชื่อ LN-24801 · เครดิตไม่ผ่าน", type: "danger", user: "ระบบ" },
-  { time: "13:42", event: "อัพเดทข้อมูลธนาคารกสิกรไทย", type: "info", user: "admin" },
-  { time: "13:30", event: "Export รายงานประจำเดือน", type: "info", user: "วรรณา" },
-];
+function pct(cur: number, prev: number): { text: string; up: boolean } {
+  if (!prev) return { text: "—", up: true };
+  const diff = ((cur - prev) / prev) * 100;
+  return { text: `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}% จากเมื่อวาน`, up: diff >= 0 };
+}
 
-// ── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, change, up }: {
-  label: string; value: string; sub?: string; change: string; up: boolean;
+function pctMonth(cur: number, prev: number): { text: string; up: boolean } {
+  if (!prev) return { text: "—", up: true };
+  const diff = ((cur - prev) / prev) * 100;
+  return { text: `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}% จากเดือนที่แล้ว`, up: diff >= 0 };
+}
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub, change, up, loading }: {
+  label: string; value: string; sub?: string; change: string; up: boolean; loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "20px 22px" }}>
+        <div style={{ height: 12, width: "60%", background: "#F1F5F9", borderRadius: 6, marginBottom: 12 }} />
+        <div style={{ height: 28, width: "80%", background: "#F1F5F9", borderRadius: 6, marginBottom: 8 }} />
+        <div style={{ height: 12, width: "50%", background: "#F1F5F9", borderRadius: 6 }} />
+      </div>
+    );
+  }
   return (
-    <div style={{
-      background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14,
-      padding: "20px 22px", boxShadow: "0 1px 3px rgba(15,23,42,.04)",
-    }}>
+    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "20px 22px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
       <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.05em", color: "#64748B", textTransform: "uppercase" }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 800, margin: "10px 0 4px", letterSpacing: "-0.02em" }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 4 }}>{sub}</div>}
@@ -64,23 +68,92 @@ function KpiCard({ label, value, sub, change, up }: {
   );
 }
 
-// ── Activity dot ──────────────────────────────────────────────────────────────
-const TYPE_COLOR: Record<string, string> = {
-  success: "#10B981", info: "#06B6D4", danger: "#EF4444", warning: "#F59E0B",
-};
-
 export default function DashboardPage() {
+  const [data, setData] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [trendRange, setTrendRange] = useState<7 | 30>(7);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stats");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setData(json);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { fetchStats(); }, []);
+
+  // ── Derived data ─────────────────────────────────────────────────────────
+  const trendData = data
+    ? (trendRange === 7 ? data.dailyTrend.slice(-7) : data.dailyTrend).map(d => ({
+        ...d,
+        close:    d.close    != null ? fmtM(d.close)    : null,
+        approved: d.approved != null ? fmtM(d.approved) : null,
+      }))
+    : [];
+
+  const yoyData = (() => {
+    if (!data) return [];
+    const map: Record<string, { month: string; y2568?: number; y2569?: number }> = {};
+    for (const e of data.monthlyTrend) {
+      if (e.close == null) continue;
+      const k = e.label;
+      if (!map[k]) map[k] = { month: k };
+      if (e.yearBE === 2568) map[k].y2568 = fmtM(e.close);
+      if (e.yearBE === 2569) map[k].y2569 = fmtM(e.close);
+    }
+    return Object.values(map).filter(r => r.y2568 != null || r.y2569 != null);
+  })();
+
+  const bankData = data
+    ? Object.entries(data.currentMonth.banks)
+        .map(([bank, v]) => ({ bank, amount: fmtM(v.close + v.approved), close: fmtM(v.close), approved: fmtM(v.approved) }))
+        .filter(b => b.amount > 0)
+        .sort((a, b) => b.amount - a.amount)
+    : [];
+
+  const maxBank = bankData[0]?.amount || 1;
+
+  const todayClose    = pct(data?.today.close    || 0, data?.yesterday.close    || 0);
+  const todayApproved = pct(data?.today.approved || 0, data?.yesterday.approved || 0);
+  const monthClose    = pctMonth(data?.currentMonth.close    || 0, data?.prevMonth.close    || 0);
+  const monthApproved = pctMonth(data?.currentMonth.approved || 0, data?.prevMonth.approved || 0);
+
+  const lastSyncText = data?.lastSync
+    ? new Date(data.lastSync).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" })
+    : "—";
+
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก"]} title="Dashboard Overview · ภาพรวมระบบ" />
       <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
+        {/* error banner */}
+        {error && (
+          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#DC2626", display: "flex", gap: 8, alignItems: "center" }}>
+            <AlertCircle size={15} /> ดึงข้อมูลไม่สำเร็จ: {error}
+            <button onClick={() => fetchStats()} style={{ marginLeft: "auto", fontSize: 12, background: "none", border: "1px solid #FECACA", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "#DC2626" }}>ลองใหม่</button>
+          </div>
+        )}
+
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
-          <KpiCard label="ยอดปิดวันนี้" value="฿23.4M" change="+8.2% จากเมื่อวาน" up={true} />
-          <KpiCard label="ยอดอนุมัติวันนี้" value="฿28.9M" change="+12.4% จากเมื่อวาน" up={true} />
-          <KpiCard label="ยอดปิดเดือนนี้" value="฿312.6M" sub="วันทำการที่ 12" change="+6.8% จากเดือนที่แล้ว" up={true} />
-          <KpiCard label="ยอดอนุมัติเดือนนี้" value="฿387.2M" sub="82.4% approval rate" change="-1.2% จากเดือนที่แล้ว" up={false} />
+          <KpiCard loading={loading} label="ยอดปิดวันนี้"       value={data ? fmt(data.today.close)           : "—"} change={todayClose.text}    up={todayClose.up} />
+          <KpiCard loading={loading} label="ยอดอนุมัติวันนี้"   value={data ? fmt(data.today.approved)        : "—"} change={todayApproved.text} up={todayApproved.up} />
+          <KpiCard loading={loading} label="ยอดปิดเดือนนี้"     value={data ? fmt(data.currentMonth.close)    : "—"} change={monthClose.text}    up={monthClose.up} />
+          <KpiCard loading={loading} label="ยอดอนุมัติเดือนนี้" value={data ? fmt(data.currentMonth.approved) : "—"} change={monthApproved.text} up={monthApproved.up} />
         </div>
 
         {/* ── Trend chart ───────────────────────────────────────────────────── */}
@@ -88,28 +161,31 @@ export default function DashboardPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>Performance Trend · แนวโน้มยอด</div>
-              <div style={{ fontSize: 12.5, color: "#64748B", marginTop: 2 }}>ยอดปิดและยอดอนุมัติ 8 วันล่าสุด (ล้านบาท)</div>
+              <div style={{ fontSize: 12.5, color: "#64748B", marginTop: 2 }}>ยอดปิดและยอดอนุมัติ (ล้านบาท)</div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {["7 วัน", "30 วัน", "90 วัน"].map((label, i) => (
-                <button key={label} style={{
-                  border: i === 0 ? "1px solid #2563EB" : "1px solid #E2E8F0",
-                  background: i === 0 ? "#EFF6FF" : "#fff",
-                  color: i === 0 ? "#2563EB" : "#64748B",
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => fetchStats(true)} disabled={refreshing} title="รีเฟรช" style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "7px 10px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <RefreshCw size={13} color="#64748B" style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+              </button>
+              {([7, 30] as const).map((n) => (
+                <button key={n} onClick={() => setTrendRange(n)} style={{
+                  border: trendRange === n ? "1px solid #2563EB" : "1px solid #E2E8F0",
+                  background: trendRange === n ? "#EFF6FF" : "#fff",
+                  color: trendRange === n ? "#2563EB" : "#64748B",
                   fontSize: 12.5, fontWeight: 600, padding: "7px 13px", borderRadius: 8, cursor: "pointer",
-                }}>{label}</button>
+                }}>{n} วัน</button>
               ))}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={trendData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `฿${v}M`} />
               <Tooltip formatter={(v) => [`฿${v}M`, ""]} contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 13 }} />
               <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-              <Line type="monotone" dataKey="close" name="ยอดปิด" stroke="#2563EB" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-              <Line type="monotone" dataKey="approved" name="ยอดอนุมัติ" stroke="#10B981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+              <Line connectNulls type="monotone" dataKey="close"    name="ยอดปิด"    stroke="#2563EB" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+              <Line connectNulls type="monotone" dataKey="approved" name="ยอดอนุมัติ" stroke="#10B981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -136,75 +212,31 @@ export default function DashboardPage() {
           {/* Bank performance */}
           <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Bank Performance</div>
-            <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 18 }}>ยอดอนุมัติแยกธนาคาร เดือนนี้</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {bankData.map((b, i) => (
-                <div key={i}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 13 }}>
-                    <span style={{ fontWeight: 600 }}>{b.bank}</span>
-                    <span style={{ color: "#64748B" }}>฿{b.amount}M · {b.cases} เคส · <span style={{ color: "#059669", fontWeight: 600 }}>{b.rate}%</span></span>
+            <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 18 }}>ยอดปิด + อนุมัติแยกธนาคาร เดือนนี้</div>
+            {bankData.length === 0 ? (
+              <div style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", paddingTop: 40 }}>ไม่มีข้อมูลธนาคารเดือนนี้</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {bankData.map((b, i) => (
+                  <div key={i}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 13 }}>
+                      <span style={{ fontWeight: 600 }}>{b.bank}</span>
+                      <span style={{ color: "#64748B" }}>ปิด ฿{b.close}M · อนุมัติ ฿{b.approved}M</span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 999, background: "#F1F5F9", overflow: "hidden" }}>
+                      <div style={{ width: `${(b.amount / maxBank) * 100}%`, height: "100%", background: "#2563EB", borderRadius: 999 }} />
+                    </div>
                   </div>
-                  <div style={{ height: 8, borderRadius: 999, background: "#F1F5F9", overflow: "hidden" }}>
-                    <div style={{ width: `${(b.amount / 200) * 100}%`, height: "100%", background: "#2563EB", borderRadius: 999 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── System status + Activities ───────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 24 }}>
-          {/* System status */}
-          <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 18 }}>System Status · สถานะระบบ</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {[
-                { label: "System Status", value: "Operational", ok: true },
-                { label: "Uptime", value: "99.94%", ok: true },
-                { label: "Last Sync", value: "2 นาทีที่แล้ว", ok: true },
-                { label: "Avg Response", value: "186 ms", ok: true },
-                { label: "Requests Today", value: "7,184", ok: true },
-              ].map((item) => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#F8FAFC", borderRadius: 10 }}>
-                  <span style={{ fontSize: 13.5, color: "#475569" }}>{item.label}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    {item.ok
-                      ? <CheckCircle size={15} color="#10B981" />
-                      : <AlertCircle size={15} color="#F59E0B" />}
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: item.ok ? "#059669" : "#D97706" }}>{item.value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent activities */}
-          <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>Recent Activities · กิจกรรมล่าสุด</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, color: "#059669", background: "#ECFDF5", padding: "4px 10px", borderRadius: 999 }}>
-                <Activity size={12} />Live
-              </div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {activities.map((a, i) => (
-                <div key={i} style={{
-                  display: "flex", gap: 14, padding: "12px 0",
-                  borderBottom: i < activities.length - 1 ? "1px solid #F1F5F9" : "none",
-                }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: TYPE_COLOR[a.type], flexShrink: 0 }} />
-                    {i < activities.length - 1 && <div style={{ width: 1, flex: 1, background: "#F1F5F9", marginTop: 6 }} />}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.event}</div>
-                    <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{a.time} · {a.user}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* ── Last sync ─────────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 12, color: "#94A3B8", gap: 6, alignItems: "center" }}>
+          <CheckCircle size={13} color="#10B981" />
+          Sync ล่าสุด: {lastSyncText} น.
         </div>
 
       </div>

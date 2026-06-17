@@ -51,6 +51,8 @@ jobs:
             --min-instances=0 \
             --max-instances=2 \
             --service-account=${{ secrets.GCP_DEPLOYER_SA }} \
+            --set-env-vars=LINE_SECRETARY_URL=${{ secrets.LINE_SECRETARY_URL }} \
+            --set-secrets=DASHBOARD_API_KEY=DASHBOARD_API_KEY:latest \
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --quiet
 
