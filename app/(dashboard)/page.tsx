@@ -5,12 +5,13 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Bot } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface BankEntry { close: number; approved: number }
 interface StatsData {
   lastSync: string | null;
+  ai?: { provider: string; model: string };
   today:        { close: number; approved: number; banks: Record<string, BankEntry> };
   yesterday:    { close: number; approved: number };
   currentMonth: { close: number; approved: number; banks: Record<string, BankEntry> };
@@ -272,10 +273,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Last sync ─────────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 12, color: "#94A3B8", gap: 6, alignItems: "center" }}>
-          <CheckCircle size={13} color="#10B981" />
-          Sync ล่าสุด: {lastSyncText} น.
+        {/* ── Footer: AI model + last sync ──────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 12, color: "#94A3B8", gap: 16, alignItems: "center" }}>
+          {data?.ai && (
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Bot size={13} color="#8B5CF6" />
+              AI: {data.ai.provider} · {data.ai.model}
+            </span>
+          )}
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <CheckCircle size={13} color="#10B981" />
+            Sync ล่าสุด: {lastSyncText} น.
+          </span>
         </div>
 
       </div>

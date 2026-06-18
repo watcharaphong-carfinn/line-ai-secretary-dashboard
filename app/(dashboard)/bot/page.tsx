@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Topbar from "@/components/Topbar";
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, MessageSquare, Database, Zap } from "lucide-react";
+import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, MessageSquare, Database, Zap, Bot } from "lucide-react";
 
 const SYNC_HISTORY = [
   { ts: "16 มิ.ย. 69 · 14:40", duration: "38.2 วิ", records: 245, status: "success", note: "งานส่วนกลาง ปี 2569" },
@@ -37,6 +37,15 @@ function Card({ children, style }: { children: React.ReactNode; style?: React.CS
 
 export default function BotPage() {
   const [syncing, setSyncing] = useState(false);
+  const [ai, setAi] = useState<{ provider: string; model: string } | null>(null);
+
+  // ดึงข้อมูล AI/model จริงจากบอท (/api/stats)
+  useEffect(() => {
+    fetch("/api/stats")
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.ai) setAi(j.ai); })
+      .catch(() => {});
+  }, []);
 
   function handleSync() {
     setSyncing(true);
@@ -54,7 +63,7 @@ export default function BotPage() {
             { icon: <Zap size={18} color="#2563EB" />, label: "Bot Status", value: "Online", sub: "Cloud Run · min-instances 1", ok: true },
             { icon: <Database size={18} color="#10B981" />, label: "Bot Cache", value: "245 records", sub: "12 เดือน · ปี 2569", ok: true },
             { icon: <Clock size={18} color="#D97706" />, label: "Last Sync", value: "2 นาทีที่แล้ว", sub: "38.2 วินาที", ok: true },
-            { icon: <MessageSquare size={18} color="#8B5CF6" />, label: "Requests Today", value: "7,184", sub: "Avg 186 ms", ok: true },
+            { icon: <Bot size={18} color="#8B5CF6" />, label: "AI Model", value: ai?.model ?? "…", sub: ai?.provider ?? "กำลังเชื่อมต่อ", ok: true },
           ].map((item, i) => (
             <Card key={i}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
