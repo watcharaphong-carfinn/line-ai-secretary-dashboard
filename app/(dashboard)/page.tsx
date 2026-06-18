@@ -5,7 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, CheckCircle, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface BankEntry { close: number; approved: number }
@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [trendRange, setTrendRange] = useState<7 | 30>(7);
   const [refreshing, setRefreshing] = useState(false);
+  const [dayIdx, setDayIdx] = useState<number | null>(null); // index ใน dailyTrend; null = ใช้วันล่าสุดที่มีข้อมูล
 
   const fetchStats = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -85,6 +86,7 @@ export default function DashboardPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setData(json);
+      setDayIdx(null); // รีเซ็ตกลับวันล่าสุดเมื่อโหลดข้อมูลใหม่
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -126,8 +128,22 @@ export default function DashboardPage() {
 
   const maxBank = bankData[0]?.amount || 1;
 
-  const todayClose    = pct(data?.today.close    || 0, data?.yesterday.close    || 0);
-  const todayApproved = pct(data?.today.approved || 0, data?.yesterday.approved || 0);
+  // ── เลือกวัน (ถอยหลังดูวันก่อนได้) — ใช้ dailyTrend ที่ API ส่งมา ──────────────
+  const dailyTrend = data?.dailyTrend ?? [];
+  const lastDataIdx = (() => {
+    for (let i = dailyTrend.length - 1; i >= 0; i--) if (dailyTrend[i].close != null) return i;
+    return dailyTrend.length - 1;
+  })();
+  const curIdx   = dayIdx ?? lastDataIdx;                       // วันที่กำลังดู
+  const selDay   = dailyTrend[curIdx];
+  const prevDay  = curIdx > 0 ? dailyTrend[curIdx - 1] : null;  // วันก่อนหน้า (ไว้คิด %)
+  const selClose    = selDay?.close    ?? 0;
+  const selApproved = selDay?.approved ?? 0;
+  const isLatestDay = curIdx >= dailyTrend.length - 1;
+  const canPrev     = curIdx > 0;
+
+  const dayClose    = pct(selClose,    prevDay?.close    || 0);
+  const dayApproved = pct(selApproved, prevDay?.approved || 0);
   const monthClose    = pctMonth(data?.currentMonth.close    || 0, data?.prevMonth.close    || 0);
   const monthApproved = pctMonth(data?.currentMonth.approved || 0, data?.prevMonth.approved || 0);
 
@@ -148,10 +164,33 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── ตัวเลือกวัน (ถอยหลังดูวันก่อน) ─────────────────────────────────── */}
+        {data && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>ดูข้อมูลรายวัน</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid #E2E8F0", borderRadius: 9, padding: "3px 4px", background: "#fff" }}>
+              <button onClick={() => setDayIdx(curIdx - 1)} disabled={!canPrev} title="วันก่อนหน้า"
+                style={{ border: "none", background: "none", padding: "5px 7px", cursor: canPrev ? "pointer" : "not-allowed", opacity: canPrev ? 1 : 0.3, display: "flex", alignItems: "center", borderRadius: 6 }}>
+                <ChevronLeft size={16} color="#334155" />
+              </button>
+              <span style={{ fontSize: 13.5, fontWeight: 700, minWidth: 64, textAlign: "center", color: "#0F172A" }}>{selDay?.label ?? "—"}</span>
+              <button onClick={() => setDayIdx(curIdx + 1)} disabled={isLatestDay} title="วันถัดไป"
+                style={{ border: "none", background: "none", padding: "5px 7px", cursor: isLatestDay ? "not-allowed" : "pointer", opacity: isLatestDay ? 0.3 : 1, display: "flex", alignItems: "center", borderRadius: 6 }}>
+                <ChevronRight size={16} color="#334155" />
+              </button>
+            </div>
+            {!isLatestDay && (
+              <button onClick={() => setDayIdx(null)} style={{ fontSize: 12, fontWeight: 600, color: "#2563EB", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "5px 11px", cursor: "pointer" }}>
+                กลับวันล่าสุด
+              </button>
+            )}
+          </div>
+        )}
+
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
-          <KpiCard loading={loading} label="ยอดปิดวันนี้"       value={data ? fmt(data.today.close)           : "—"} change={todayClose.text}    up={todayClose.up} />
-          <KpiCard loading={loading} label="ยอดอนุมัติวันนี้"   value={data ? fmt(data.today.approved)        : "—"} change={todayApproved.text} up={todayApproved.up} />
+          <KpiCard loading={loading} label={`ยอดปิด ${selDay?.label ?? ""}`.trim()}     value={data ? fmt(selClose)                   : "—"} change={dayClose.text}      up={dayClose.up} />
+          <KpiCard loading={loading} label={`ยอดอนุมัติ ${selDay?.label ?? ""}`.trim()} value={data ? fmt(selApproved)                : "—"} change={dayApproved.text}   up={dayApproved.up} />
           <KpiCard loading={loading} label="ยอดปิดเดือนนี้"     value={data ? fmt(data.currentMonth.close)    : "—"} change={monthClose.text}    up={monthClose.up} />
           <KpiCard loading={loading} label="ยอดอนุมัติเดือนนี้" value={data ? fmt(data.currentMonth.approved) : "—"} change={monthApproved.text} up={monthApproved.up} />
         </div>
