@@ -1,3 +1,5 @@
+import { getSessionUser, firestore } from "@/lib/auth";
+
 export const dynamic = 'force-dynamic';
 
 // จัดการรายชื่อผู้ใช้หลังบ้าน (allowlist + role) เก็บใน Firestore collection 'users'
@@ -61,5 +63,64 @@ export async function GET() {
       superAdmin: SUPER_ADMIN,
       warn: err instanceof Error ? err.message : String(err),
     });
+  }
+}
+
+// ── เพิ่ม user (เฉพาะ super_admin) ───────────────────────────────────────────────
+async function requireSuperAdmin() {
+  const u = await getSessionUser();
+  return u && u.role === 'super_admin' ? u : null;
+}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function POST(req: Request) {
+  const admin = await requireSuperAdmin();
+  if (!admin) return Response.json({ error: 'forbidden' }, { status: 403 });
+
+  const body = await req.json().catch(() => ({}));
+  const email = String(body.email || '').trim().toLowerCase();
+  const role = String(body.role || 'viewer');
+  if (!EMAIL_RE.test(email)) return Response.json({ error: 'อีเมลไม่ถูกต้อง' }, { status: 400 });
+  if (!['admin', 'viewer'].includes(role)) return Response.json({ error: 'role ไม่ถูกต้อง' }, { status: 400 });
+  if (email === SUPER_ADMIN) return Response.json({ error: 'เป็น Super Admin อยู่แล้ว' }, { status: 400 });
+
+  try {
+    const fs = await firestore();
+    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}`, {
+      method: 'PATCH',
+      headers: fs.headers,
+      body: JSON.stringify({ fields: {
+        email: { stringValue: email },
+        role: { stringValue: role },
+        addedBy: { stringValue: admin.email },
+        addedAt: { stringValue: new Date().toISOString() },
+      } }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`firestore ${r.status}`);
+    return Response.json({ ok: true, email, role });
+  } catch (err: unknown) {
+    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
+}
+
+// ── ลบ user (เฉพาะ super_admin) ──────────────────────────────────────────────────
+export async function DELETE(req: Request) {
+  const admin = await requireSuperAdmin();
+  if (!admin) return Response.json({ error: 'forbidden' }, { status: 403 });
+
+  const email = (new URL(req.url).searchParams.get('email') || '').trim().toLowerCase();
+  if (!email) return Response.json({ error: 'missing email' }, { status: 400 });
+  if (email === SUPER_ADMIN) return Response.json({ error: 'ลบ Super Admin ไม่ได้' }, { status: 400 });
+
+  try {
+    const fs = await firestore();
+    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}`, {
+      method: 'DELETE', headers: fs.headers, signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok && r.status !== 404) throw new Error(`firestore ${r.status}`);
+    return Response.json({ ok: true, email });
+  } catch (err: unknown) {
+    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
 }

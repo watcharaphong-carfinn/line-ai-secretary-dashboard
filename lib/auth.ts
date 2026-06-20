@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { cookies } from "next/headers";
 
 // ── Session (signed HMAC token in httpOnly cookie) ──────────────────────────────
 export const SESSION_COOKIE = "cf_session";
@@ -76,3 +77,19 @@ export const cfg = {
   authEnabled: process.env.AUTH_ENABLED === "true",
   redirectPath: "/api/auth/callback",
 };
+
+// อ่าน session ปัจจุบันใน route handler/server component
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return verifySession(token, cfg.authSecret);
+}
+
+// helper เขียน/ลบ Firestore (REST + metadata token) — ใช้ใน /api/users
+export async function firestore() {
+  const t = await gcpToken();
+  const p = await gcpProject();
+  return {
+    base: `https://firestore.googleapis.com/v1/projects/${p}/databases/(default)/documents`,
+    headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+  };
+}

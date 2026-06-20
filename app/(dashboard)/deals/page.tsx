@@ -40,10 +40,26 @@ function Card({ icon, label, value, sub }: { icon: React.ReactNode; label: strin
   );
 }
 
+interface DealRow {
+  caseId: string; customerName: string; customerPhone: string; province: string; carPlate: string;
+  agent: string; hub: string; bank: string; dealType: string; status: string; contactDate: string | null;
+  closeAmount: number; approvedAmount: number; commission3: number; serviceFee: number; revenue: number;
+}
+
+function csvCell(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 export default function DealsPage() {
   const [data, setData] = useState<DealsResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // per-deal table
+  const [pdMonth, setPdMonth] = useState("");
+  const [pdDeals, setPdDeals] = useState<DealRow[]>([]);
+  const [pdLoading, setPdLoading] = useState(false);
+  const [q, setQ] = useState("");
 
   const load = async (silent = false) => {
     silent ? setRefreshing(true) : setLoading(true);
@@ -58,6 +74,33 @@ export default function DealsPage() {
   useEffect(() => { load(); }, []);
 
   const agg = data?.agg || null;
+
+  // เดือนที่มี (ใหม่→เก่า) สำหรับเลือกดูตารางรายเคส
+  const monthKeysDesc = agg ? Object.keys(agg.byMonth).sort((a, b) => {
+    const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number);
+    return by - ay || bm - am;
+  }) : [];
+  useEffect(() => { if (!pdMonth && monthKeysDesc.length) setPdMonth(monthKeysDesc[0]); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pdMonth) return;
+    setPdLoading(true);
+    fetch(`/api/deals/list?month=${pdMonth}`).then(r => r.json())
+      .then(j => setPdDeals(Array.isArray(j.deals) ? j.deals : []))
+      .catch(() => setPdDeals([])).finally(() => setPdLoading(false));
+  }, [pdMonth]);
+
+  const filtered = pdDeals.filter(d => {
+    const s = q.trim().toLowerCase();
+    return !s || [d.customerName, d.agent, d.bank, d.caseId, d.customerPhone].some(x => String(x || "").toLowerCase().includes(s));
+  });
+  const exportCsv = () => {
+    const cols: (keyof DealRow)[] = ["caseId", "customerName", "customerPhone", "province", "carPlate", "agent", "hub", "bank", "dealType", "status", "contactDate", "closeAmount", "approvedAmount", "commission3", "serviceFee", "revenue"];
+    const csv = "﻿" + [cols.join(","), ...filtered.map(d => cols.map(c => csvCell(d[c])).join(","))].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `deals-${pdMonth}.csv`; a.click();
+  };
+  const TH2 = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
   const sum = (sel: (b: Bucket) => number) => agg ? Object.values(agg.byMonth).reduce((s, b) => s + sel(b), 0) : 0;
   const totalClose = sum(b => b.close);
   const totalRevenue = sum(b => b.revenue);
@@ -192,6 +235,58 @@ export default function DealsPage() {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+
+        {/* ── ตารางรายเคส (per-deal) + ค้นหา/export ───────────────────────────── */}
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px", borderBottom: "1px solid #F1F5F9", flexWrap: "wrap" }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>ตารางรายเคส</div>
+            <select value={pdMonth} onChange={e => setPdMonth(e.target.value)}
+              style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "8px 12px", fontSize: 13.5, background: "#fff", cursor: "pointer" }}>
+              {monthKeysDesc.length === 0 && <option>—</option>}
+              {monthKeysDesc.map(mk => <option key={mk} value={mk}>{TH2(mk)}</option>)}
+            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 200px", maxWidth: 320, border: "1px solid #E2E8F0", borderRadius: 9, padding: "7px 12px", background: "#F8FAFC" }}>
+              <Hash size={14} color="#94A3B8" />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="ค้นหา ลูกค้า/เซลล์/ธนาคาร/เลขเคส"
+                style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, width: "100%" }} />
+            </div>
+            <button onClick={exportCsv} disabled={!filtered.length}
+              style={{ marginLeft: "auto", border: "1px solid #2563EB", background: filtered.length ? "#2563EB" : "#93C5FD", color: "#fff", borderRadius: 9, padding: "8px 16px", fontSize: 13.5, fontWeight: 700, cursor: filtered.length ? "pointer" : "default" }}>
+              Export CSV ({filtered.length})
+            </button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 880, borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ color: "#94A3B8", textAlign: "left", fontSize: 11.5, background: "#F8FAFC", whiteSpace: "nowrap" }}>
+                  {["เลขที่เคส", "ลูกค้า", "เบอร์", "เซลล์", "ธนาคารเดิม", "ประเภท", "สถานะ", "วันติดต่อ", "ยอดปิด", "รายได้"].map(h => (
+                    <th key={h} style={{ padding: "11px 14px", fontWeight: 700, textAlign: h === "ยอดปิด" || h === "รายได้" ? "right" : "left" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pdLoading ? (
+                  <tr><td colSpan={10} style={{ padding: 28, textAlign: "center", color: "#94A3B8" }}>กำลังโหลด…</td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={10} style={{ padding: 28, textAlign: "center", color: "#94A3B8" }}>{pdDeals.length ? "ไม่พบเคสที่ค้นหา" : "ไม่มีข้อมูลเดือนนี้"}</td></tr>
+                ) : filtered.map((d, i) => (
+                  <tr key={d.caseId + i} style={{ borderTop: "1px solid #F1F5F9", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "#2563EB" }}>{d.caseId}</td>
+                    <td style={{ padding: "10px 14px", fontWeight: 600 }}>{d.customerName || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{d.customerPhone || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#475569" }}>{d.agent || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#475569" }}>{d.bank || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{d.dealType || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{d.status || "—"}</td>
+                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{d.contactDate || "—"}</td>
+                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600 }}>{fmtFull(d.closeAmount || 0)}</td>
+                    <td style={{ padding: "10px 14px", textAlign: "right", color: "#059669", fontWeight: 600 }}>{fmtFull(d.revenue || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
