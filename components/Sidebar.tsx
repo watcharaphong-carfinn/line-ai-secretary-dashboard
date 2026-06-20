@@ -82,26 +82,18 @@ export default function Sidebar() {
       display: "flex", flexDirection: "column", height: "100vh",
       position: "sticky", top: 0,
     }}>
-      {/* Logo */}
+      {/* Logo (โลโก้ CarFinn จริง — วางบนกล่องขาวให้เห็นชัดบน sidebar เข้ม) */}
       <div style={{
-        padding: "22px 22px 20px", display: "flex", alignItems: "center", gap: 12,
+        padding: "18px 16px 16px", display: "flex", alignItems: "center", gap: 10,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 11, background: "#2563EB",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>
-          </svg>
-        </div>
-        <div>
-          <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, letterSpacing: "0.02em" }}>CARFINN</div>
-          <div style={{ color: "#64748B", fontSize: 11 }}>Finance Operations Platform</div>
+        <div style={{ flex: 1, minWidth: 0, background: "#fff", borderRadius: 11, padding: "11px 16px" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/carfinn-logo.png" alt="CarFinn" style={{ width: "100%", height: "auto", display: "block" }} />
         </div>
         {/* ปุ่มปิด drawer (เฉพาะมือถือ) */}
         <button className="mobile-only" onClick={() => setOpen(false)} aria-label="ปิดเมนู" style={{
-          marginLeft: "auto", width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+          width: 32, height: 32, borderRadius: 8, flexShrink: 0,
           border: "none", background: "rgba(255,255,255,0.06)", cursor: "pointer",
           alignItems: "center", justifyContent: "center",
         }}>

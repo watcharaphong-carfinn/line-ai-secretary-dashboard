@@ -17,16 +17,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0F172A", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 18, padding: "40px 36px", boxShadow: "0 20px 60px rgba(0,0,0,.4)" }}>
         {/* logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3v18h18" /><path d="M7 14l4-4 3 3 5-6" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "0.02em", color: "#0F172A" }}>CARFINN</div>
-            <div style={{ fontSize: 12, color: "#64748B" }}>Finance Operations Platform</div>
-          </div>
+        <div style={{ marginBottom: 26 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/carfinn-logo.png" alt="CarFinn" style={{ width: 180, height: "auto", display: "block" }} />
+          <div style={{ fontSize: 12, color: "#64748B", marginTop: 6 }}>Finance Operations Platform</div>
         </div>
 
         <div style={{ fontSize: 22, fontWeight: 700, color: "#0F172A", marginBottom: 6 }}>เข้าสู่ระบบ</div>
