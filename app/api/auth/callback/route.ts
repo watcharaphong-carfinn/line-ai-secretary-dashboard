@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { cfg, signSession, resolveRole, SESSION_COOKIE, STATE_COOKIE } from "@/lib/auth";
+import { cfg, signSession, resolveRole, logAudit, SESSION_COOKIE, STATE_COOKIE } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +44,8 @@ export async function GET(req: Request) {
     if (!email || claims.email_verified === false) return redirect("/login?error=email");
 
     const role = await resolveRole(email);
-    if (!role) return redirect("/login?error=denied");
+    if (!role) { await logAudit("login_denied", email); return redirect("/login?error=denied"); }
+    await logAudit("login", email, role);
 
     // ออก session cookie
     const token = signSession({ email, name: claims.name || email, role }, cfg.authSecret);

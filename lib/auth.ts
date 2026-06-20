@@ -93,3 +93,21 @@ export async function firestore() {
     headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
   };
 }
+
+// บันทึก audit log (append-only ลง Firestore collection 'audit') — best-effort ไม่ throw
+export async function logAudit(action: string, actor: string, detail = "") {
+  try {
+    const fs = await firestore();
+    await fetch(`${fs.base}/audit`, {
+      method: "POST",
+      headers: fs.headers,
+      body: JSON.stringify({ fields: {
+        ts: { stringValue: new Date().toISOString() },
+        action: { stringValue: action },
+        actor: { stringValue: actor || "-" },
+        detail: { stringValue: detail || "" },
+      } }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch { /* best-effort — อย่าให้ audit ล้มแล้วกระทบ action หลัก */ }
+}

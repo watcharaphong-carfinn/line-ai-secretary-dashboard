@@ -1,4 +1,4 @@
-import { getSessionUser, firestore } from "@/lib/auth";
+import { getSessionUser, firestore, logAudit } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       signal: AbortSignal.timeout(10000),
     });
     if (!r.ok) throw new Error(`firestore ${r.status}`);
+    await logAudit("user_add", admin.email, `${email} (${role})`);
     return Response.json({ ok: true, email, role });
   } catch (err: unknown) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
@@ -119,6 +120,7 @@ export async function DELETE(req: Request) {
       method: 'DELETE', headers: fs.headers, signal: AbortSignal.timeout(10000),
     });
     if (!r.ok && r.status !== 404) throw new Error(`firestore ${r.status}`);
+    await logAudit("user_remove", admin.email, email);
     return Response.json({ ok: true, email });
   } catch (err: unknown) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
