@@ -2,13 +2,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, BarChart3, TrendingUp,
+  LayoutDashboard, FileText, BarChart3, TrendingUp, Briefcase,
   Server, RefreshCw, Settings, Users, ClipboardList, LogOut, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
 const NAV_MAIN = [
   { href: "/", label: "ภาพรวมระบบ", icon: LayoutDashboard },
+  { href: "/deals", label: "รายเคส · Deals", icon: Briefcase },
   { href: "/reports", label: "รายงาน · Reports", icon: FileText },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
   { href: "/performance", label: "Financing Performance", icon: TrendingUp },
