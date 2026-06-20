@@ -73,9 +73,14 @@ function NavSection({ label, items, pathname }: {
   );
 }
 
-export default function Sidebar() {
+const ROLE_LABEL: Record<string, string> = { super_admin: "Super Admin", admin: "Admin", viewer: "Viewer" };
+
+export default function Sidebar({ user }: { user?: { email: string; name?: string; role: string } | null }) {
   const pathname = usePathname();
   const { open, setOpen } = useDrawer();
+  const displayName = user?.name || user?.email || "สมชาย ธนกิจ";
+  const roleLabel = user ? (ROLE_LABEL[user.role] || user.role) : "Super Admin";
+  const avatar = (displayName.trim()[0] || "U").toUpperCase();
   return (
     <aside className={`app-sidebar${open ? " open" : ""}`} style={{
       width: 280, flexShrink: 0, background: "#0F172A",
@@ -134,17 +139,23 @@ export default function Sidebar() {
             width: 36, height: 36, borderRadius: "50%", background: "#2563EB",
             color: "#fff", fontSize: 13, fontWeight: 700,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>SA</div>
+          }}>{avatar}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600 }}>สมชาย ธนกิจ</div>
+            <div style={{ color: "#fff", fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               fontSize: 10.5, fontWeight: 600, color: "#60A5FA",
               background: "rgba(37,99,235,0.16)", padding: "1px 7px",
               borderRadius: 999, marginTop: 2,
-            }}>Super Admin</span>
+            }}>{roleLabel}</span>
           </div>
-          <LogOut size={17} color="#64748B" />
+          {user ? (
+            <a href="/api/auth/logout" title="ออกจากระบบ" style={{ display: "flex", alignItems: "center" }}>
+              <LogOut size={17} color="#64748B" />
+            </a>
+          ) : (
+            <LogOut size={17} color="#64748B" />
+          )}
         </div>
       </div>
     </aside>
