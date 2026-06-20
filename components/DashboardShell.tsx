@@ -13,13 +13,11 @@ function Overlay() {
   );
 }
 
-interface ShellUser { email: string; name?: string; role: string }
-
-export default function DashboardShell({ children, user }: { children: React.ReactNode; user?: ShellUser | null }) {
+export default function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <DrawerProvider>
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-        <Sidebar user={user} />
+        <Sidebar />
         <Overlay />
         <main style={{ flex: 1, overflow: "auto", background: "#F8FAFC" }}>{children}</main>
       </div>

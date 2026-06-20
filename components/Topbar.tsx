@@ -1,5 +1,6 @@
 "use client";
-import { Bell, Search, ChevronRight, Menu } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bell, Search, ChevronRight, Menu, LogOut } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
 interface TopbarProps {
@@ -8,8 +9,30 @@ interface TopbarProps {
   synced?: boolean;
 }
 
+interface Me { email: string; name?: string; role: string }
+const ROLE_LABEL: Record<string, string> = { super_admin: "Super Admin", admin: "Admin", viewer: "Viewer" };
+
 export default function Topbar({ breadcrumb, title, synced = true }: TopbarProps) {
   const { toggle } = useDrawer();
+  const [user, setUser] = useState<Me | null>(null);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => setUser(d.user)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const initial = ((user?.name || user?.email || "U").trim()[0] || "U").toUpperCase();
+  const roleLabel = user ? (ROLE_LABEL[user.role] || user.role) : "";
+
   return (
     <header className="app-topbar" style={{
       height: 72, flexShrink: 0, background: "#fff",
@@ -66,8 +89,8 @@ export default function Topbar({ breadcrumb, title, synced = true }: TopbarProps
           }} />
         </button>
 
-        {/* Sync status */}
-        <div style={{
+        {/* Sync status (ซ่อนบนมือถือ ประหยัดที่) */}
+        <div className="desktop-only" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 12, fontWeight: 600,
           color: synced ? "#059669" : "#D97706",
@@ -82,12 +105,36 @@ export default function Topbar({ breadcrumb, title, synced = true }: TopbarProps
           {synced ? "Synced" : "Syncing…"}
         </div>
 
-        {/* Avatar */}
-        <div style={{
-          width: 38, height: 38, borderRadius: "50%", background: "#2563EB",
-          color: "#fff", fontSize: 13, fontWeight: 700,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>SA</div>
+        {/* Avatar + dropdown (ปุ่มเล็ก คลิกเปิดเมนู → logout) */}
+        <div ref={menuRef} style={{ position: "relative" }}>
+          <button onClick={() => setOpen(o => !o)} aria-label="บัญชีผู้ใช้" title={user?.email || ""} style={{
+            width: 38, height: 38, borderRadius: "50%", background: "#2563EB",
+            color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>{initial}</button>
+
+          {open && (
+            <div style={{
+              position: "absolute", right: 0, top: 46, width: 240, zIndex: 60,
+              background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(15,23,42,.16)", overflow: "hidden",
+            }}>
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid #F1F5F9" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name || "ผู้ใช้"}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email || "ยังไม่ได้เข้าสู่ระบบ"}</div>
+                {roleLabel && (
+                  <span style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 600, color: "#2563EB", background: "#EFF6FF", padding: "2px 8px", borderRadius: 999 }}>{roleLabel}</span>
+                )}
+              </div>
+              <a href="/api/auth/logout" style={{
+                display: "flex", alignItems: "center", gap: 9, padding: "12px 16px",
+                fontSize: 13.5, fontWeight: 600, color: "#DC2626", textDecoration: "none",
+              }}>
+                <LogOut size={16} /> ออกจากระบบ
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
