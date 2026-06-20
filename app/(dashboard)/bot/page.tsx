@@ -55,10 +55,10 @@ export default function BotPage() {
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก", "Bot Management"]} title="Bot Management · ระบบ LINE Bot" />
-      <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Status row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+        <div className="grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
           {[
             { icon: <Zap size={18} color="#2563EB" />, label: "Bot Status", value: "Online", sub: "Cloud Run · min-instances 1", ok: true },
             { icon: <Database size={18} color="#10B981" />, label: "Bot Cache", value: "245 records", sub: "12 เดือน · ปี 2569", ok: true },
@@ -76,7 +76,7 @@ export default function BotPage() {
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 24 }}>
+        <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 24 }}>
           {/* Sync control */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <Card>

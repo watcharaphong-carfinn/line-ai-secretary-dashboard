@@ -91,7 +91,7 @@ export default function SettingsPage() {
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก", "Settings"]} title="Settings · ตั้งค่าระบบ" />
-      <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         <Section title="LINE Bot Configuration" sub="ตั้งค่า LINE Messaging API">
           <Field label="LINE Channel Access Token" value="••••••••••••••••••••••••••••••••" type="password" hint="จัดการใน Google Secret Manager (LINE_CHANNEL_ACCESS_TOKEN)" />
@@ -107,7 +107,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section title="Sync Settings" sub="ตั้งค่าการซิงค์ข้อมูล">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Field label="Download Timeout (วิ)" value="120" hint="timeout ต่อไฟล์ (วินาที)" />
             <Field label="Batch Size" value="2" hint="จำนวนไฟล์ต่อ batch" />
             <Field label="Batch Delay (ms)" value="1500" hint="หน่วง ms ระหว่าง batch" />

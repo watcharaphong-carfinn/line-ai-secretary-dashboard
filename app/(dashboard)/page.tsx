@@ -155,7 +155,7 @@ export default function DashboardPage() {
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก"]} title="Dashboard Overview · ภาพรวมระบบ" />
-      <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* error banner */}
         {error && (
@@ -189,7 +189,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+        <div className="grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
           <KpiCard loading={loading} label={`ยอดปิด ${selDay?.label ?? ""}`.trim()}     value={data ? fmt(selClose)                   : "—"} change={dayClose.text}      up={dayClose.up} />
           <KpiCard loading={loading} label={`ยอดอนุมัติ ${selDay?.label ?? ""}`.trim()} value={data ? fmt(selApproved)                : "—"} change={dayApproved.text}   up={dayApproved.up} />
           <KpiCard loading={loading} label="ยอดปิดเดือนนี้"     value={data ? fmt(data.currentMonth.close)    : "—"} change={monthClose.text}    up={monthClose.up} />
@@ -231,7 +231,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── YoY + Bank ────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           {/* YoY */}
           <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>เปรียบเทียบปี · YoY</div>

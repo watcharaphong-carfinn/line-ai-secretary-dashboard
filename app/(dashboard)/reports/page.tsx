@@ -73,10 +73,10 @@ export default function ReportsPage() {
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก", "Reports"]} title="Reports · รายงานสินเชื่อ" />
-      <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* Toolbar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 9, flex: 1, maxWidth: 340,
             border: "1px solid #E2E8F0", borderRadius: 10, padding: "9px 13px", background: "#fff",
@@ -120,8 +120,8 @@ export default function ReportsPage() {
         </div>
 
         {/* Table */}
-        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, overflowX: "auto", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
+          <table style={{ width: "100%", minWidth: 720, borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <Th>เลขที่</Th>

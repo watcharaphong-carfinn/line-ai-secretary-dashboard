@@ -3,8 +3,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, BarChart3, TrendingUp,
-  Server, RefreshCw, Settings, Users, ClipboardList, LogOut,
+  Server, RefreshCw, Settings, Users, ClipboardList, LogOut, X,
 } from "lucide-react";
+import { useDrawer } from "./drawer-context";
 
 const NAV_MAIN = [
   { href: "/", label: "ภาพรวมระบบ", icon: LayoutDashboard },
@@ -25,9 +26,11 @@ const NAV_SYS = [
 function NavItem({ href, label, icon: Icon, active }: {
   href: string; label: string; icon: React.ElementType; active: boolean;
 }) {
+  const { setOpen } = useDrawer();
   return (
     <Link
       href={href}
+      onClick={() => setOpen(false)} // ปิด drawer เมื่อเลือกเมนู (มือถือ)
       style={{
         display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
         borderRadius: 9, textDecoration: "none", fontSize: 14, fontWeight: active ? 600 : 500,
@@ -71,8 +74,9 @@ function NavSection({ label, items, pathname }: {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { open, setOpen } = useDrawer();
   return (
-    <aside style={{
+    <aside className={`app-sidebar${open ? " open" : ""}`} style={{
       width: 280, flexShrink: 0, background: "#0F172A",
       display: "flex", flexDirection: "column", height: "100vh",
       position: "sticky", top: 0,
@@ -94,6 +98,14 @@ export default function Sidebar() {
           <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, letterSpacing: "0.02em" }}>CARFINN</div>
           <div style={{ color: "#64748B", fontSize: 11 }}>Finance Operations Platform</div>
         </div>
+        {/* ปุ่มปิด drawer (เฉพาะมือถือ) */}
+        <button className="mobile-only" onClick={() => setOpen(false)} aria-label="ปิดเมนู" style={{
+          marginLeft: "auto", width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+          border: "none", background: "rgba(255,255,255,0.06)", cursor: "pointer",
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <X size={18} color="#94A3B8" />
+        </button>
       </div>
 
       {/* Nav */}

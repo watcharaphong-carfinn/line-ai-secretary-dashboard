@@ -53,10 +53,10 @@ export default function AnalyticsPage() {
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก", "Analytics"]} title="Analytics · วิเคราะห์ประสิทธิภาพ" />
-      <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Summary */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+        <div className="grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
           <StatBadge label="Approval Rate" value="82.4%" sub="เดือนมิถุนายน" color="#2563EB" />
           <StatBadge label="Avg Loan Size" value="฿1.65M" sub="สินเชื่อเฉลี่ย" color="#059669" />
           <StatBadge label="Avg Close Days" value="4.2 วัน" sub="เวลาปิดเฉลี่ย" color="#D97706" />
@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Monthly Area + Funnel */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 24 }}>
+        <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 24 }}>
           <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px" }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Monthly Volume Trend</div>
             <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 20 }}>ยอดปิด/อนุมัติ และจำนวนเคสรายเดือน (฿M)</div>
@@ -116,7 +116,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Product mix + Agent performance */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 24 }}>
+        <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 24 }}>
           <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "22px 24px" }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Product Mix</div>
             <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 16 }}>สัดส่วนประเภทสินเชื่อ</div>
