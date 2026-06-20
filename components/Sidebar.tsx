@@ -82,14 +82,16 @@ export default function Sidebar() {
       display: "flex", flexDirection: "column", height: "100vh",
       position: "sticky", top: 0,
     }}>
-      {/* Logo (โลโก้ CarFinn จริง — วางบนกล่องขาวให้เห็นชัดบน sidebar เข้ม) */}
+      {/* Logo — ไอคอนมาร์ก CarFinn (กล่องฟ้าไล่เฉด) + ชื่อ CarFinn AI */}
       <div style={{
-        padding: "18px 16px 16px", display: "flex", alignItems: "center", gap: 10,
+        padding: "22px 18px 18px", display: "flex", alignItems: "center", gap: 11,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}>
-        <div style={{ flex: 1, minWidth: 0, background: "#fff", borderRadius: 11, padding: "11px 16px" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/carfinn-logo.png" alt="CarFinn" style={{ width: "100%", height: "auto", display: "block" }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/carfinn-mark.png" alt="CarFinn AI" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: "block" }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, letterSpacing: "0.01em" }}>CarFinn AI</div>
+          <div style={{ color: "#64748B", fontSize: 11 }}>Finance Operations Platform</div>
         </div>
         {/* ปุ่มปิด drawer (เฉพาะมือถือ) */}
         <button className="mobile-only" onClick={() => setOpen(false)} aria-label="ปิดเมนู" style={{

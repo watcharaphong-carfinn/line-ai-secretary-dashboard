@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Carfinn — Finance Operations Platform",
-  description: "Enterprise Admin Dashboard",
+  title: "CarFinn AI — Finance Operations Platform",
+  description: "CarFinn AI Admin Dashboard",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
