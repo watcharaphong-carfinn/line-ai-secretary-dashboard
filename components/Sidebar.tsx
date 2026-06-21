@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, BarChart3, TrendingUp, Briefcase,
-  Server, RefreshCw, Settings, Users, ClipboardList, X,
+  LayoutDashboard, FileText, BarChart3, Briefcase,
+  Server, Settings, Users, ClipboardList, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
@@ -12,11 +12,9 @@ const NAV_MAIN = [
   { href: "/deals", label: "รายเคส · Deals", icon: Briefcase },
   { href: "/reports", label: "รายงาน · Reports", icon: FileText },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
-  { href: "/performance", label: "Financing Performance", icon: TrendingUp },
 ];
 const NAV_OPS = [
   { href: "/bot", label: "Bot Management", icon: Server },
-  { href: "/sync", label: "Sync Center", icon: RefreshCw },
 ];
 const NAV_SYS = [
   { href: "/settings", label: "Settings", icon: Settings },
