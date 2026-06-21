@@ -1,15 +1,18 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Topbar from "@/components/Topbar";
-import { Hash, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Hash, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, X } from "lucide-react";
 
 const TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const fmtFull = (v: number) => `฿${Math.round(v || 0).toLocaleString("th-TH")}`;
 
 interface DealRow {
-  caseId: string; customerName: string; customerPhone: string; province: string; carPlate: string;
-  agent: string; hub: string; bank: string; dealType: string; status: string; contactDate: string | null;
-  closeAmount: number; approvedAmount: number; commission3: number; serviceFee: number; revenue: number;
+  caseId: string; customerName: string; customerPhone: string; province: string; carModel: string;
+  carPlate: string; plateProvince: string;
+  agent: string; agentPhone: string; hub: string; bank: string; dealType: string; status: string;
+  contactDate: string | null; milestones: Record<string, string>; note: string;
+  closeAmount: number; approvedAmount: number; deposit: number; closeExtra: number; totalDraw: number;
+  commission3: number; transferFee: number; serviceFee: number; vat7: number; revenue: number;
 }
 type SortKey = keyof DealRow;
 function csvCell(v: unknown): string {
@@ -57,6 +60,7 @@ export default function CustomersPage() {
   const [fStatus, setFStatus] = useState("");
   const [fBank, setFBank] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "closeAmount", dir: -1 });
+  const [sel, setSel] = useState<DealRow | null>(null);
 
   useEffect(() => {
     fetch("/api/deals").then(r => r.json()).then(d => {
@@ -172,7 +176,7 @@ export default function CustomersPage() {
                 ) : result.length === 0 ? (
                   <tr><td colSpan={COLS.length} style={{ padding: 28, textAlign: "center", color: "#94A3B8" }}>{rows.length ? "ไม่พบเคสตามเงื่อนไข" : "ไม่มีข้อมูลเดือนนี้"}</td></tr>
                 ) : result.map((d, i) => (
-                  <tr key={d.caseId + i}>
+                  <tr key={d.caseId + i} onClick={() => setSel(d)} style={{ cursor: "pointer" }}>
                     <td style={{ padding: "10px 14px", fontWeight: 600, color: "#2563EB", whiteSpace: "nowrap" }}>{d.caseId}</td>
                     <td style={{ padding: "10px 14px", fontWeight: 600 }}><Trunc text={d.customerName} w={150} /></td>
                     <td style={{ padding: "10px 14px", color: "#64748B", whiteSpace: "nowrap" }}>{d.customerPhone || "—"}</td>
@@ -190,6 +194,99 @@ export default function CustomersPage() {
           </div>
         </div>
       </div>
+
+      {sel && <DealDetail deal={sel} onClose={() => setSel(null)} />}
     </>
+  );
+}
+
+// ── Modal รายละเอียดเคส ─────────────────────────────────────────────────────────
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "7px 0", borderBottom: "1px solid #F1F5F9", fontSize: 13.5 }}>
+      <span style={{ color: "#94A3B8", flexShrink: 0 }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: "right", wordBreak: "break-word" }}>{value || <span style={{ color: "#CBD5E1", fontWeight: 400 }}>—</span>}</span>
+    </div>
+  );
+}
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#2563EB", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function DealDetail({ deal: d, onClose }: { deal: DealRow; onClose: () => void }) {
+  const money = (v: number) => v ? fmtFull(v) : "—";
+  const ms = Object.entries(d.milestones || {});
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 80, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 20, overflowY: "auto" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 620, background: "#fff", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,.3)", margin: "24px 0" }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: "1px solid #E2E8F0" }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#2563EB" }}>{d.caseId}</div>
+            <div style={{ fontSize: 13, color: "#64748B" }}>{d.customerName}</div>
+          </div>
+          <button onClick={onClose} aria-label="ปิด" style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={18} color="#64748B" />
+          </button>
+        </div>
+        {/* body */}
+        <div style={{ padding: "18px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Pill text={d.dealType} {...typeStyle(d.dealType)} />
+            <Pill text={d.status} {...statusStyle(d.status)} />
+          </div>
+
+          <Section title="ลูกค้า / รถ">
+            <Field label="ชื่อลูกค้า" value={d.customerName} />
+            <Field label="เบอร์โทร" value={d.customerPhone} />
+            <Field label="จังหวัด" value={d.province} />
+            <Field label="รุ่นรถ" value={d.carModel} />
+            <Field label="ทะเบียนรถ" value={[d.carPlate, d.plateProvince].filter(Boolean).join(" ")} />
+          </Section>
+
+          <Section title="เจ้าหน้าที่">
+            <Field label="เซลล์/เจ้าหน้าที่" value={d.agent} />
+            <Field label="เบอร์เจ้าหน้าที่" value={d.agentPhone} />
+            <Field label="Hub/สาขา" value={d.hub} />
+          </Section>
+
+          <Section title="ดีล">
+            <Field label="ธนาคารเดิม" value={d.bank} />
+            <Field label="ประเภท" value={d.dealType} />
+            <Field label="สถานะ" value={d.status} />
+            <Field label="วันที่ลูกค้าติดต่อ" value={d.contactDate} />
+          </Section>
+
+          <Section title="การเงิน">
+            <Field label="ยอดอนุมัติ" value={money(d.approvedAmount)} />
+            <Field label="ยอดปิด" value={money(d.closeAmount)} />
+            <Field label="มัดจำเล่ม" value={money(d.deposit)} />
+            <Field label="ปิดเพิ่ม" value={money(d.closeExtra)} />
+            <Field label="รวมเบิกใช้" value={money(d.totalDraw)} />
+            <Field label="ค่าคอม (3%)" value={money(d.commission3)} />
+            <Field label="ค่าโอน" value={money(d.transferFee)} />
+            <Field label="ค่าบริการ" value={money(d.serviceFee)} />
+            <Field label="VAT 7%" value={money(d.vat7)} />
+            <Field label="รายได้รวม" value={<span style={{ color: "#059669" }}>{money(d.revenue)}</span>} />
+          </Section>
+
+          <Section title={`ไทม์ไลน์ขั้นตอน (${ms.length})`}>
+            {ms.length === 0 ? <div style={{ fontSize: 13, color: "#CBD5E1", padding: "7px 0" }}>—</div> :
+              ms.map(([label, date]) => <Field key={label} label={label} value={date} />)}
+          </Section>
+
+          {d.note && (
+            <Section title="หมายเหตุ">
+              <div style={{ fontSize: 13.5, color: "#475569", whiteSpace: "pre-wrap", background: "#F8FAFC", borderRadius: 10, padding: "12px 14px", lineHeight: 1.6 }}>{d.note}</div>
+            </Section>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
