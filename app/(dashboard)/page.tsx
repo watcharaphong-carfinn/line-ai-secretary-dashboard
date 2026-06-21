@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
+import DealSummary from "@/components/DealSummary";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -272,6 +273,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ── สรุปงานรายเคส (รีไฟแนนซ์/จำนำ) ─────────────────────────────────── */}
+        <DealSummary />
 
         {/* ── Footer: AI model + last sync ──────────────────────────────────── */}
         <div style={{ display: "flex", justifyContent: "flex-end", fontSize: 12, color: "#94A3B8", gap: 16, alignItems: "center" }}>

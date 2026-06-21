@@ -2,15 +2,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, BarChart3, Briefcase,
+  LayoutDashboard, BarChart3, Briefcase,
   Server, Settings, Users, ClipboardList, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
 const NAV_MAIN = [
   { href: "/", label: "ภาพรวมระบบ", icon: LayoutDashboard },
-  { href: "/deals", label: "รายเคส · Deals", icon: Briefcase },
-  { href: "/reports", label: "รายงาน · Reports", icon: FileText },
+  { href: "/customers", label: "ฐานข้อมูลลูกค้า", icon: Briefcase },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
 ];
 const NAV_OPS = [
