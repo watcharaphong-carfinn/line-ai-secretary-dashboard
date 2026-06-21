@@ -200,23 +200,30 @@ export default function CustomersPage() {
   );
 }
 
-// ── Modal รายละเอียดเคส (2 คอลัมน์ กระชับ) ───────────────────────────────────────
+// ── Modal รายละเอียดเคส (กระชับ: 3 คอลัมน์ + ยุบส่วนยาว) ──────────────────────────
 function Item({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 1 }}>{label}</div>
-      <div style={{ fontSize: 13.5, fontWeight: 600, wordBreak: "break-word" }}>{value || <span style={{ color: "#CBD5E1", fontWeight: 400 }}>—</span>}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>{value || <span style={{ color: "#CBD5E1", fontWeight: 400 }}>—</span>}</div>
     </div>
   );
 }
-const Grid = ({ children }: { children: React.ReactNode }) => (
-  <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "11px 20px" }}>{children}</div>
+const Grid2 = ({ children }: { children: React.ReactNode }) => (
+  <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "11px 18px" }}>{children}</div>
 );
-function Sec({ title, children }: { title: string; children: React.ReactNode }) {
+const Grid3 = ({ children }: { children: React.ReactNode }) => (
+  <div className="grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "12px 16px" }}>{children}</div>
+);
+function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 9 }}>{title}</div>
-      {children}
+    <div style={{ border: "1px solid #E2E8F0", borderRadius: 10 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#475569" }}>
+        <span>{title}</span>
+        {open ? <ChevronUp size={15} color="#94A3B8" /> : <ChevronDown size={15} color="#94A3B8" />}
+      </button>
+      {open && <div style={{ padding: "2px 14px 14px" }}>{children}</div>}
     </div>
   );
 }
@@ -228,9 +235,9 @@ function DealDetail({ deal: d, onClose }: { deal: DealRow; onClose: () => void }
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.5)", zIndex: 80, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 20, overflowY: "auto" }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 720, background: "#fff", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,.3)", margin: "24px 0" }}>
         {/* header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 22px", borderBottom: "1px solid #E2E8F0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: "#2563EB" }}>{d.caseId}</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 20px", borderBottom: "1px solid #E2E8F0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "#2563EB" }}>{d.caseId}</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{d.customerName}</span>
             <Pill text={d.dealType} {...typeStyle(d.dealType)} />
             <Pill text={d.status} {...statusStyle(d.status)} />
@@ -240,62 +247,56 @@ function DealDetail({ deal: d, onClose }: { deal: DealRow; onClose: () => void }
           </button>
         </div>
         {/* body */}
-        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* การเงิน — ไฮไลต์ 2 ตัวเด่น + ที่เหลือเป็น grid */}
-          <div>
-            <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ background: "#EFF6FF", borderRadius: 12, padding: "12px 16px" }}>
-                <div style={{ fontSize: 11.5, color: "#2563EB", fontWeight: 600 }}>ยอดปิด</div>
-                <div style={{ fontSize: 21, fontWeight: 800, color: "#1E3A8A" }}>{money(d.closeAmount)}</div>
-              </div>
-              <div style={{ background: "#ECFDF5", borderRadius: 12, padding: "12px 16px" }}>
-                <div style={{ fontSize: 11.5, color: "#059669", fontWeight: 600 }}>รายได้รวม</div>
-                <div style={{ fontSize: 21, fontWeight: 800, color: "#065F46" }}>{money(d.revenue)}</div>
-              </div>
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* ยอดเงินเด่น */}
+          <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ background: "#EFF6FF", borderRadius: 12, padding: "11px 16px" }}>
+              <div style={{ fontSize: 11.5, color: "#2563EB", fontWeight: 600 }}>ยอดปิด</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#1E3A8A" }}>{money(d.closeAmount)}</div>
             </div>
-            <Sec title="การเงิน (รายละเอียด)">
-              <Grid>
-                <Item label="ยอดอนุมัติ" value={money(d.approvedAmount)} />
-                <Item label="รวมเบิกใช้" value={money(d.totalDraw)} />
-                <Item label="มัดจำเล่ม" value={money(d.deposit)} />
-                <Item label="ปิดเพิ่ม" value={money(d.closeExtra)} />
-                <Item label="ค่าคอม (3%)" value={money(d.commission3)} />
-                <Item label="ค่าบริการ" value={money(d.serviceFee)} />
-                <Item label="ค่าโอน" value={money(d.transferFee)} />
-                <Item label="VAT 7%" value={money(d.vat7)} />
-              </Grid>
-            </Sec>
+            <div style={{ background: "#ECFDF5", borderRadius: 12, padding: "11px 16px" }}>
+              <div style={{ fontSize: 11.5, color: "#059669", fontWeight: 600 }}>รายได้รวม</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#065F46" }}>{money(d.revenue)}</div>
+            </div>
           </div>
 
-          <Sec title="ลูกค้า / รถ">
-            <Grid>
-              <Item label="เบอร์โทร" value={d.customerPhone} />
-              <Item label="จังหวัด" value={d.province} />
-              <Item label="ทะเบียนรถ" value={[d.carPlate, d.plateProvince].filter(Boolean).join(" ")} />
+          {/* ข้อมูลหลัก — 3 คอลัมน์ */}
+          <Grid3>
+            <Item label="เบอร์ลูกค้า" value={d.customerPhone} />
+            <Item label="จังหวัด" value={d.province} />
+            <Item label="ทะเบียนรถ" value={[d.carPlate, d.plateProvince].filter(Boolean).join(" ")} />
+            <Item label="เซลล์" value={d.agent} />
+            <Item label="เบอร์เซลล์" value={d.agentPhone} />
+            <Item label="Hub/สาขา" value={d.hub} />
+            <Item label="ธนาคารเดิม" value={d.bank} />
+            <Item label="ประเภท" value={d.dealType} />
+            <Item label="วันที่ติดต่อ" value={d.contactDate} />
+          </Grid3>
+
+          {/* ส่วนยาว — กดเปิด */}
+          <Collapsible title="การเงิน (รายละเอียด)">
+            <Grid3>
+              <Item label="ยอดอนุมัติ" value={money(d.approvedAmount)} />
+              <Item label="รวมเบิกใช้" value={money(d.totalDraw)} />
+              <Item label="มัดจำเล่ม" value={money(d.deposit)} />
+              <Item label="ปิดเพิ่ม" value={money(d.closeExtra)} />
+              <Item label="ค่าคอม (3%)" value={money(d.commission3)} />
+              <Item label="ค่าบริการ" value={money(d.serviceFee)} />
+              <Item label="ค่าโอน" value={money(d.transferFee)} />
+              <Item label="VAT 7%" value={money(d.vat7)} />
               <Item label="รุ่นรถ" value={d.carModel} />
-            </Grid>
-          </Sec>
+            </Grid3>
+          </Collapsible>
 
-          <Sec title="เจ้าหน้าที่ / ดีล">
-            <Grid>
-              <Item label="เซลล์/เจ้าหน้าที่" value={d.agent} />
-              <Item label="เบอร์เจ้าหน้าที่" value={d.agentPhone} />
-              <Item label="Hub/สาขา" value={d.hub} />
-              <Item label="ธนาคารเดิม" value={d.bank} />
-              <Item label="ประเภท" value={d.dealType} />
-              <Item label="วันที่ลูกค้าติดต่อ" value={d.contactDate} />
-            </Grid>
-          </Sec>
-
-          <Sec title={`ไทม์ไลน์ขั้นตอน (${ms.length})`}>
+          <Collapsible title={`ไทม์ไลน์ขั้นตอน (${ms.length})`}>
             {ms.length === 0 ? <div style={{ fontSize: 13, color: "#CBD5E1" }}>—</div> :
-              <Grid>{ms.map(([label, date]) => <Item key={label} label={label} value={date} />)}</Grid>}
-          </Sec>
+              <Grid2>{ms.map(([label, date]) => <Item key={label} label={label} value={date} />)}</Grid2>}
+          </Collapsible>
 
           {d.note && (
-            <Sec title="หมายเหตุ">
-              <div style={{ fontSize: 13, color: "#475569", whiteSpace: "pre-wrap", background: "#F8FAFC", borderRadius: 10, padding: "12px 14px", lineHeight: 1.6 }}>{d.note}</div>
-            </Sec>
+            <Collapsible title="หมายเหตุ">
+              <div style={{ fontSize: 13, color: "#475569", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{d.note}</div>
+            </Collapsible>
           )}
         </div>
       </div>
