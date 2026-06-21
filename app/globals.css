@@ -77,3 +77,8 @@ body {
 @media (max-width: 1024px) { .grid-kpi { grid-template-columns: repeat(2, 1fr) !important; } }
 @media (max-width: 560px)  { .grid-kpi { grid-template-columns: 1fr !important; } }
 @media (max-width: 900px)  { .grid-2  { grid-template-columns: 1fr !important; } }
+
+/* Data table — อ่านง่ายขึ้น: หัวติดบน, แถวสลับสี + hover */
+.dtable thead th { position: sticky; top: 0; z-index: 2; background: #F8FAFC; }
+.dtable tbody tr:nth-child(even) { background: #FAFBFC; }
+.dtable tbody tr:hover { background: #EFF6FF; }
