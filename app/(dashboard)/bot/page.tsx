@@ -1,29 +1,67 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Topbar from "@/components/Topbar";
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, MessageSquare, Database, Zap, Bot } from "lucide-react";
+import {
+  RefreshCw, CheckCircle, AlertCircle, Clock, MessageSquare, Database, Zap, Bot,
+  FileSpreadsheet, ExternalLink, Megaphone,
+} from "lucide-react";
 
-const SYNC_HISTORY = [
-  { ts: "16 มิ.ย. 69 · 14:40", duration: "38.2 วิ", records: 245, status: "success", note: "งานส่วนกลาง ปี 2569" },
-  { ts: "16 มิ.ย. 69 · 11:00", duration: "41.8 วิ", records: 245, status: "success", note: "งานส่วนกลาง ปี 2568" },
-  { ts: "15 มิ.ย. 69 · 20:50", duration: "665.9 วิ", records: 245, status: "warning", note: "ปี 2568/2569 timeout" },
-  { ts: "14 มิ.ย. 69 · 08:00", duration: "471.5 วิ", records: 0, status: "error", note: "0 records — Bot Cache filtered" },
-];
+interface SyncedFile {
+  id: string; name: string | null; mimeType?: string | null;
+  modifiedTime?: string | null; link: string; kind: "sales" | "lead"; error?: string;
+}
+interface Stats {
+  lastSync: string | null;
+  ai?: { provider: string; model: string };
+  counts?: { daily: number; monthly: number; deals: number; leads: number; targets: number };
+  syncedFiles?: SyncedFile[];
+}
 
-const STATUS_ICON: Record<string, React.ReactNode> = {
-  success: <CheckCircle size={16} color="#10B981" />,
-  warning: <AlertCircle size={16} color="#F59E0B" />,
-  error:   <XCircle size={16} color="#EF4444" />,
-};
-
-const KEYWORDS = ["งานส่วนกลาง"];
-
-const RESPONSE_TEMPLATES = [
-  { name: "ยอดปิดวันนี้", trigger: "ยอดปิดวันนี้", desc: "แสดงยอดปิดสินเชื่อรายวัน พร้อมแยกธนาคาร" },
-  { name: "ยอดปิดเดือนที่แล้ว", trigger: "ยอดปิดเดือนที่แล้ว", desc: "แสดงยอดปิดสินเชื่อเดือนที่แล้ว" },
-  { name: "ยอดปิดรายเดือน", trigger: "ยอดปิดรายเดือน", desc: "แสดงยอดปิดสินเชื่อทุกเดือน" },
-  { name: "ยอดปิดทั้งหมด", trigger: "ยอดปิดทั้งหมด", desc: "สรุปยอดสินเชื่อทั้งหมด" },
-  { name: "sync ข้อมูล", trigger: "sync ข้อมูล", desc: "สั่ง sync ข้อมูลจาก Google Drive" },
+// คำสั่งที่บอทรองรับจริง (อัปเดตตามที่พัฒนาไว้)
+const COMMAND_GROUPS: { group: string; items: { trigger: string; desc: string }[] }[] = [
+  {
+    group: "ยอดขาย · งานส่วนกลาง",
+    items: [
+      { trigger: "ยอดปิดวันนี้", desc: "ยอดปิดรายวัน พร้อมแยกธนาคาร" },
+      { trigger: "ยอดปิดเดือนก่อน", desc: "รองรับ เดือนนี้/เดือนก่อน/ปีกลาย/3 เดือนที่แล้ว" },
+      { trigger: "ยอด 3 เดือนล่าสุด", desc: "รวมช่วง — ย้อนหลัง N เดือน / สะสมต้นปี / ครึ่งปีแรก" },
+      { trigger: "ไตรมาสที่แล้ว", desc: "สรุปรายไตรมาส" },
+      { trigger: "เปรียบเทียบ 2568 กับ 2569", desc: "เทียบปี/เดือน/ประเภทงาน/เซลล์" },
+    ],
+  },
+  {
+    group: "วิเคราะห์ · จัดอันดับ",
+    items: [
+      { trigger: "เซลล์ไหนเก่งสุด", desc: "อันดับเซลล์ · ธนาคาร · เดือน · ปี · ประเภทงาน" },
+      { trigger: "ธนาคารเดิมไหนปิดเยอะสุด", desc: "อันดับสถาบันการเงินเดิมที่ไปปิด" },
+      { trigger: "ยอดโตขึ้นไหม", desc: "แนวโน้ม MoM + เทียบปีก่อน (YoY)" },
+      { trigger: "ยอดเซลล์กรธิดา", desc: "สรุปรายเซลล์ / รายประเภทงาน" },
+    ],
+  },
+  {
+    group: "การตลาด · Lead",
+    items: [
+      { trigger: "การตลาดเดือนนี้", desc: "funnel ทักแชท→lead→ส่งงาน + งบโฆษณา/ROAS" },
+      { trigger: "เดือนไหนยิงแอดคุ้มสุด", desc: "จัดอันดับกำไรจากโฆษณา" },
+      { trigger: "ส่งไฟแนนซ์เจ้าไหนเยอะสุด", desc: "แยกตามลีสซิ่ง + อัตราอนุมัติ" },
+      { trigger: "มีงานรอผลกี่เคส", desc: "สถานะงานที่ส่ง" },
+    ],
+  },
+  {
+    group: "เป้า KPI",
+    items: [
+      { trigger: "เป้าเดือนนี้", desc: "ดูความคืบหน้าเทียบเป้า" },
+      { trigger: "ตั้งเป้า จากนี้ไป 40 ล้าน", desc: "admin — ตั้งเป้าต่อเนื่อง หรือระบุเดือน" },
+    ],
+  },
+  {
+    group: "ระบบ (admin)",
+    items: [
+      { trigger: "force sync", desc: "ดึงข้อมูลใหม่ทุกไฟล์" },
+      { trigger: "cache status", desc: "สถานะข้อมูลในระบบ" },
+      { trigger: "แจ้งเตือน สรุปยอด ทุกวัน 09:00", desc: "ส่งสรุปยอดอัตโนมัติเข้าไลน์" },
+    ],
+  },
 ];
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -35,35 +73,74 @@ function Card({ children, style }: { children: React.ReactNode; style?: React.CS
   );
 }
 
+function relTime(iso: string | null): string {
+  if (!iso) return "ยังไม่เคย sync";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "เมื่อสักครู่";
+  if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  return `${Math.floor(h / 24)} วันที่แล้ว`;
+}
+
 export default function BotPage() {
   const [syncing, setSyncing] = useState(false);
-  const [ai, setAi] = useState<{ provider: string; model: string } | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  // ดึงข้อมูล AI/model จริงจากบอท (/api/stats)
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/stats")
       .then(r => r.ok ? r.json() : null)
-      .then(j => { if (j?.ai) setAi(j.ai); })
-      .catch(() => {});
+      .then(j => { if (j && !j.error) setStats(j); })
+      .catch(() => { })
+      .finally(() => setLoading(false));
   }, []);
 
-  function handleSync() {
-    setSyncing(true);
-    setTimeout(() => setSyncing(false), 3000);
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSync(force: boolean) {
+    setSyncing(true); setMsg(null);
+    try {
+      const r = await fetch("/api/bot/sync", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `error ${r.status}`);
+      setMsg({ kind: "ok", text: `สั่ง ${force ? "force sync" : "sync"} แล้ว — บอทกำลังทำงาน (ใช้เวลา ~40-90 วินาที) กดรีเฟรชดูผลได้` });
+    } catch (e) {
+      setMsg({ kind: "err", text: e instanceof Error ? e.message : String(e) });
+    } finally { setSyncing(false); }
   }
+
+  const c = stats?.counts;
+  const files = stats?.syncedFiles || [];
 
   return (
     <>
       <Topbar breadcrumb={["หน้าหลัก", "Bot Management"]} title="Bot Management · ระบบ LINE Bot" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
-        {/* Status row */}
+        {msg && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "10px 14px", borderRadius: 10,
+            background: msg.kind === "ok" ? "#F0FDF4" : "#FFFBEB",
+            border: `1px solid ${msg.kind === "ok" ? "#BBF7D0" : "#FDE68A"}`,
+            color: msg.kind === "ok" ? "#166534" : "#B45309",
+          }}>
+            {msg.kind === "ok" ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {msg.text}
+          </div>
+        )}
+
+        {/* Status row — ข้อมูลจริงจากบอท */}
         <div className="grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
           {[
-            { icon: <Zap size={18} color="#2563EB" />, label: "Bot Status", value: "Online", sub: "Cloud Run · min-instances 1", ok: true },
-            { icon: <Database size={18} color="#10B981" />, label: "Bot Cache", value: "245 records", sub: "12 เดือน · ปี 2569", ok: true },
-            { icon: <Clock size={18} color="#D97706" />, label: "Last Sync", value: "2 นาทีที่แล้ว", sub: "38.2 วินาที", ok: true },
-            { icon: <Bot size={18} color="#8B5CF6" />, label: "AI Model", value: ai?.model ?? "…", sub: ai?.provider ?? "กำลังเชื่อมต่อ", ok: true },
+            { icon: <Zap size={18} color="#2563EB" />, label: "Bot Status", value: stats ? "Online" : (loading ? "…" : "ไม่ตอบสนอง"), sub: "Cloud Run · min-instances 1" },
+            { icon: <Database size={18} color="#10B981" />, label: "ข้อมูลยอดขาย", value: c ? `${c.daily} วัน` : "…", sub: c ? `${c.monthly} เดือน · ${c.deals.toLocaleString()} เคส` : "" },
+            { icon: <Megaphone size={18} color="#D97706" />, label: "ข้อมูลการตลาด", value: c ? `${c.leads} เคส` : "…", sub: c ? `เป้า KPI ${c.targets} เดือน` : "" },
+            { icon: <Clock size={18} color="#8B5CF6" />, label: "Sync ล่าสุด", value: relTime(stats?.lastSync ?? null), sub: stats?.lastSync ? new Date(stats.lastSync).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "" },
           ].map((item, i) => (
             <Card key={i}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -77,81 +154,102 @@ export default function BotPage() {
         </div>
 
         <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 24 }}>
-          {/* Sync control */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Sync control — ปุ่มจริง */}
             <Card>
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Sync Control · ควบคุมการซิงค์</div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Sync Control · ควบคุมการซิงค์</div>
+              <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 16 }}>สั่งบอทดึงข้อมูลจาก Google Drive ทันที</div>
 
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#64748B", marginBottom: 8 }}>SYNC_FILE_KEYWORDS (Secret Manager)</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {KEYWORDS.map(k => (
-                    <span key={k} style={{ background: "#EFF6FF", color: "#2563EB", fontSize: 12.5, fontWeight: 600, padding: "4px 11px", borderRadius: 999, border: "1px solid #BFDBFE" }}>
-                      {k}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  style={{
-                    flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    background: syncing ? "#93C5FD" : "#2563EB", color: "#fff",
-                    border: "none", borderRadius: 11, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: syncing ? "default" : "pointer",
-                  }}
-                >
-                  <RefreshCw size={16} style={{ animation: syncing ? "spin 1s linear infinite" : "none" }} />
-                  {syncing ? "กำลัง Sync…" : "Sync ทันที"}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => handleSync(false)} disabled={syncing} style={{
+                  flex: 1, minWidth: 150, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  background: syncing ? "#93C5FD" : "#2563EB", color: "#fff",
+                  border: "none", borderRadius: 11, padding: "12px 20px", fontSize: 14, fontWeight: 700,
+                  cursor: syncing ? "default" : "pointer",
+                }}>
+                  <RefreshCw size={16} className={syncing ? "spin" : ""} />
+                  {syncing ? "กำลังสั่ง…" : "Sync ทันที"}
+                </button>
+                <button onClick={() => handleSync(true)} disabled={syncing} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  background: "#fff", color: "#7C3AED", border: "1px solid #DDD6FE",
+                  borderRadius: 11, padding: "12px 18px", fontSize: 13.5, fontWeight: 700,
+                  cursor: syncing ? "default" : "pointer",
+                }}>
+                  Force sync
                 </button>
               </div>
 
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-              <div style={{ marginTop: 18, padding: "12px 14px", background: "#F8FAFC", borderRadius: 11, fontSize: 12.5, color: "#64748B" }}>
-                <div style={{ fontWeight: 600, color: "#475569", marginBottom: 6 }}>ข้อมูลการ Sync</div>
-                <div>Batch: 2 ไฟล์ · delay 1.5s · timeout 120s/ไฟล์</div>
-                <div style={{ marginTop: 3 }}>ไม่ sync Bot Cache Sheet (ข้อมูล)</div>
+              <div style={{ marginTop: 16, padding: "12px 14px", background: "#F8FAFC", borderRadius: 11, fontSize: 12.5, color: "#64748B" }}>
+                <div style={{ fontWeight: 600, color: "#475569", marginBottom: 6 }}>หมายเหตุ</div>
+                <div>• Sync ทันที = อ่านเฉพาะไฟล์ที่เปลี่ยน · Force sync = อ่านใหม่ทุกไฟล์</div>
+                <div style={{ marginTop: 3 }}>• ใช้เวลา ~40-90 วินาที · ทำงานเบื้องหลัง กดแล้วรอสักครู่ค่อยรีเฟรช</div>
+                <div style={{ marginTop: 3 }}>• บอทยัง sync อัตโนมัติทุกวันตามเวลาที่ตั้งไว้</div>
               </div>
             </Card>
 
-            {/* Sync history */}
+            {/* ไฟล์ที่ sync — ของจริง พร้อมลิงก์ */}
             <Card>
-              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Sync History</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {SYNC_HISTORY.map((h, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 12px", background: "#F8FAFC", borderRadius: 10 }}>
-                    <div style={{ paddingTop: 1 }}>{STATUS_ICON[h.status]}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{h.ts}</div>
-                      <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>{h.note}</div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: h.status === "error" ? "#DC2626" : "#0F172A" }}>{h.records} records</div>
-                      <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{h.duration}</div>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>ไฟล์ที่ระบบดึงข้อมูล</div>
+                <button onClick={load} style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "5px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748B" }}>
+                  <RefreshCw size={13} /> รีเฟรช
+                </button>
               </div>
+              <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 16 }}>คลิกเพื่อเปิดไฟล์ต้นทางใน Google Drive</div>
+
+              {loading ? (
+                <div style={{ fontSize: 12.5, color: "#94A3B8" }}>กำลังโหลด…</div>
+              ) : !files.length ? (
+                <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ยังไม่มีไฟล์ที่ตั้งค่าไว้ (SYNC_FILE_IDS / LEAD_FILE_IDS)</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {files.map(f => (
+                    <a key={f.id} href={f.link} target="_blank" rel="noopener noreferrer"
+                       style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 13px", background: "#F8FAFC",
+                                borderRadius: 10, textDecoration: "none", color: "inherit", border: "1px solid transparent" }}>
+                      <FileSpreadsheet size={17} color={f.kind === "lead" ? "#D97706" : "#10B981"} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {f.name || f.id}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 2 }}>
+                          {f.kind === "lead" ? "การตลาด/Lead" : "ยอดขาย"}
+                          {f.modifiedTime && ` · แก้ไขล่าสุด ${new Date(f.modifiedTime).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}`}
+                          {f.error && ` · ⚠️ ${f.error}`}
+                        </div>
+                      </div>
+                      <ExternalLink size={14} color="#94A3B8" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
 
-          {/* Response templates */}
+          {/* คำสั่งที่บอทรองรับ */}
           <Card>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Response Templates · คำสั่ง LINE Bot</div>
-            <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 18 }}>คำสั่งที่ Bot รองรับในปัจจุบัน</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {RESPONSE_TEMPLATES.map((t, i) => (
-                <div key={i} style={{ border: "1px solid #E2E8F0", borderRadius: 12, padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <MessageSquare size={15} color="#2563EB" />
-                    <span style={{ fontSize: 13.5, fontWeight: 700 }}>{t.name}</span>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>คำสั่ง LINE Bot</div>
+            <div style={{ fontSize: 12.5, color: "#64748B", marginBottom: 18 }}>
+              พิมพ์ในไลน์ได้เลย · AI เข้าใจภาษาธรรมชาติ ไม่ต้องพิมพ์ตรงเป๊ะ
+              {stats?.ai && ` · ${stats.ai.model}`}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {COMMAND_GROUPS.map(g => (
+                <div key={g.group}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                    {g.group}
                   </div>
-                  <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 8 }}>{t.desc}</div>
-                  <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "7px 11px", fontSize: 12, fontFamily: "monospace", color: "#475569" }}>
-                    trigger: "{t.trigger}"
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {g.items.map(t => (
+                      <div key={t.trigger} style={{ border: "1px solid #E2E8F0", borderRadius: 11, padding: "11px 13px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <MessageSquare size={14} color="#2563EB" />
+                          <span style={{ fontSize: 13, fontWeight: 700 }}>{t.trigger}</span>
+                        </div>
+                        <div style={{ fontSize: 12.5, color: "#64748B" }}>{t.desc}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
