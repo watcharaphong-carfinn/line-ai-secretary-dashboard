@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, BarChart3, Briefcase, Megaphone,
+  LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio,
   Server, Settings, Users, ClipboardList, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
@@ -12,6 +12,10 @@ const NAV_MAIN = [
   { href: "/customers", label: "ฐานข้อมูลลูกค้า", icon: Briefcase },
   { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
+];
+// ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
+const NAV_ADS = [
+  { href: "/ads", label: "บัญชีโฆษณา", icon: Radio },
 ];
 const NAV_OPS = [
   { href: "/bot", label: "Bot Management", icon: Server },
@@ -112,6 +116,7 @@ export default function Sidebar() {
             <NavItem key={item.href} {...item} active={pathname === item.href} />
           ))}
         </div>
+        <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />
         <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />
         <NavSection label="System" items={NAV_SYS} pathname={pathname} />
       </nav>
