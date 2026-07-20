@@ -1,7 +1,15 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Topbar from "@/components/Topbar";
-import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download } from "lucide-react";
+
+// สีผ่าน validator (คู่นี้ CVD ΔE 32.3 — แยกออกชัดแม้ตาบอดสี)
+const C_FOLLOW = "#2563EB";
+const C_BLOCK  = "#D97706";
+
+interface DayStat { followers: number; reach: number; blocks: number }
+interface StatDoc { id: string; name: string; platform: string; updatedAt: string | null; daily: Record<string, DayStat> }
 
 interface TestResult {
   ok: boolean; name?: string; error?: string;
@@ -51,6 +59,31 @@ export default function AdsPage() {
   const [form, setForm] = useState({ platform: "line", accountId: "", name: "", group: "", token: "" });
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [stats, setStats] = useState<StatDoc[]>([]);
+
+  const loadStats = useCallback(() => {
+    fetch("/api/adsources/sync")
+      .then(r => r.json())
+      .then(d => { if (!d.error) setStats(d.stats || []); })
+      .catch(() => { });
+  }, []);
+
+  const runSync = async (id: string) => {
+    setSyncing(id); setMsg(null);
+    try {
+      const r = await fetch("/api/adsources/sync", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, days: 30 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `error ${r.status}`);
+      setMsg({ kind: "ok", text: `ดึงข้อมูล "${d.name}" แล้ว +${d.added} วัน (มีทั้งหมด ${d.totalDays} วัน)${d.note ? ` · ${d.note}` : ""}` });
+      loadStats();
+    } catch (e) {
+      setMsg({ kind: "err", text: e instanceof Error ? e.message : String(e) });
+    } finally { setSyncing(null); }
+  };
 
   const runTest = async (id: string) => {
     setTesting(id);
@@ -76,7 +109,7 @@ export default function AdsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadStats(); }, [load, loadStats]);
 
   const save = async () => {
     if (!form.accountId.trim() || !form.name.trim()) {
@@ -229,6 +262,14 @@ export default function AdsPage() {
                                              gap: 5, fontSize: 12, color: "#2563EB", marginRight: 6 }}>
                               <PlugZap size={13} /> {testing === s.id ? "กำลังทดสอบ…" : "ทดสอบ"}
                             </button>
+                            {s.platform === "line" && (
+                              <button onClick={() => runSync(s.id)} disabled={syncing === s.id} title="ดึงสถิติย้อนหลัง 30 วัน"
+                                      style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "5px 9px",
+                                               cursor: syncing === s.id ? "default" : "pointer", display: "inline-flex", alignItems: "center",
+                                               gap: 5, fontSize: 12, color: "#7C3AED", marginRight: 6 }}>
+                                <Download size={13} /> {syncing === s.id ? "กำลังดึง…" : "ดึง 30 วัน"}
+                              </button>
+                            )}
                             <button onClick={() => remove(s)} title="ลบ" style={{ border: "none", background: "transparent", cursor: "pointer", color: "#DC2626", display: "inline-flex", padding: 4, verticalAlign: "middle" }}>
                               <Trash2 size={15} />
                             </button>
@@ -263,6 +304,40 @@ export default function AdsPage() {
                   </table>
                 </div>
               )}
+            </Panel>
+          );
+        })}
+
+        {/* กราฟผู้ติดตามรายวัน (จากข้อมูลที่ดึงมาเก็บแล้ว) */}
+        {stats.filter(s => Object.keys(s.daily || {}).length > 0).map(s => {
+          const rows = Object.entries(s.daily)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([d, v]) => ({
+              label: `${d.slice(6, 8)}/${d.slice(4, 6)}`,
+              "ผู้ติดตาม": v.followers,
+              "บล็อก": v.blocks,
+            }));
+          const last = rows[rows.length - 1];
+          const first = rows[0];
+          const growth = last && first ? last["ผู้ติดตาม"] - first["ผู้ติดตาม"] : 0;
+          return (
+            <Panel key={s.id} title={`ผู้ติดตามรายวัน — ${s.name}`}
+                   note={`${rows.length} วัน · เปลี่ยนแปลง ${growth >= 0 ? "+" : ""}${growth.toLocaleString("th-TH")} คน${s.updatedAt ? ` · ดึงล่าสุด ${new Date(s.updatedAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}` : ""}`}>
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <LineChart data={rows} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F7" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11.5, fill: "#64748B" }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} minTickGap={18} />
+                    <YAxis tick={{ fontSize: 11.5, fill: "#64748B" }} axisLine={false} tickLine={false} width={52}
+                           tickFormatter={(v) => Number(v).toLocaleString("th-TH")} />
+                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12.5 }}
+                             formatter={(v) => Number(v).toLocaleString("th-TH")} />
+                    <Legend wrapperStyle={{ fontSize: 12.5, paddingTop: 6 }} />
+                    <Line type="monotone" dataKey="ผู้ติดตาม" stroke={C_FOLLOW} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="บล็อก" stroke={C_BLOCK} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </Panel>
           );
         })}
