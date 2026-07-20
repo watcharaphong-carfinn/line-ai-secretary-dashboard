@@ -1,3 +1,5 @@
+import { getSessionUser } from "@/lib/auth";
+
 export const dynamic = 'force-dynamic';
 
 // อ่าน aggregates ข้อมูลรายเคส (deal) จาก Firestore โดยตรง (ไม่ผ่านบอท)
@@ -23,6 +25,10 @@ async function projectId(): Promise<string> {
 }
 
 export async function GET() {
+  // ต้อง login — สรุปยอดปิด/ผลงานรายเซลล์ ไม่เปิดสาธารณะ
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
+
   try {
     const [token, project] = await Promise.all([metadataToken(), projectId()]);
     const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/dealagg/agg`;

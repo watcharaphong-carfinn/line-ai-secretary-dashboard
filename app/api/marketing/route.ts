@@ -1,3 +1,5 @@
+import { getSessionUser } from "@/lib/auth";
+
 export const dynamic = 'force-dynamic';
 
 // อ่านข้อมูลแผนกการตลาด/Lead จาก Firestore โดยตรง (ไม่ผ่านบอท)
@@ -28,6 +30,10 @@ const parse = <T,>(v: string | undefined, fallback: T): T => {
 };
 
 export async function GET() {
+  // ต้อง login — ข้อมูลงบโฆษณา/รายได้ ไม่เปิดสาธารณะ
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
+
   try {
     const [token, project] = await Promise.all([metadataToken(), projectId()]);
     const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/marketing/summary`;
