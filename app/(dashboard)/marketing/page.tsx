@@ -4,6 +4,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { MessageCircle, Inbox, Send, Megaphone, Wallet, TrendingUp } from "lucide-react";
+import Topbar from "@/components/Topbar";
+
+// ห่อทุก state ด้วยโครงเดียวกับหน้าอื่น (Topbar + page-body) เพื่อให้มีขอบ/หัวข้อเหมือนกัน
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Topbar breadcrumb={["หน้าหลัก", "การตลาด · Lead"]} title="การตลาดออนไลน์ · Lead" />
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {children}
+      </div>
+    </>
+  );
+}
 
 // ── ชุดสีผ่าน validator (CVD ΔE ต่ำสุด 25.6 — แยกออกแม้ตาบอดสี) ──
 const C_CHAT = "#2563EB";   // ทักแชท
@@ -77,18 +90,20 @@ export default function MarketingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ padding: 4, fontSize: 13, color: "#94A3B8" }}>กำลังโหลดข้อมูลการตลาด…</div>;
-  if (err) return <div style={{ padding: 16, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, color: "#B91C1C", fontSize: 13 }}>โหลดข้อมูลไม่สำเร็จ: {err}</div>;
+  if (loading) return <Shell><div style={{ fontSize: 13, color: "#94A3B8" }}>กำลังโหลดข้อมูลการตลาด…</div></Shell>;
+  if (err) return <Shell><div style={{ padding: 16, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, color: "#B91C1C", fontSize: 13 }}>โหลดข้อมูลไม่สำเร็จ: {err}</div></Shell>;
 
   const funnel = data?.funnel || [];
   const agg = data?.agg || null;
 
   if (!funnel.length && !agg) {
     return (
-      <div style={{ padding: 20, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, fontSize: 13.5, color: "#92400E" }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>ยังไม่มีข้อมูลการตลาดในระบบ</div>
-        {data?.note || 'พิมพ์ "force sync" ในไลน์เพื่อดึงข้อมูลรอบแรก แล้วรีเฟรชหน้านี้'}
-      </div>
+      <Shell>
+        <div style={{ padding: 20, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, fontSize: 13.5, color: "#92400E" }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>ยังไม่มีข้อมูลการตลาดในระบบ</div>
+          {data?.note || 'พิมพ์ "force sync" ในไลน์เพื่อดึงข้อมูลรอบแรก แล้วรีเฟรชหน้านี้'}
+        </div>
+      </Shell>
     );
   }
 
@@ -113,13 +128,10 @@ export default function MarketingPage() {
   const maxLeasing = leasing[0]?.[1].count || 1;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div>
-        <h1 style={{ fontSize: 21, fontWeight: 800, margin: 0 }}>การตลาดออนไลน์ · Lead</h1>
-        <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: 4 }}>
-          ท่อ lead จากยิงแอด → ทักแชท → ส่งงานให้ลีสซิ่ง (คนละชุดกับยอดปิดส่วนกลาง)
-          {data?.updatedAt && ` · อัปเดต ${new Date(data.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}`}
-        </div>
+    <Shell>
+      <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: -4 }}>
+        ท่อ lead จากยิงแอด → ทักแชท → ส่งงานให้ลีสซิ่ง (คนละชุดกับยอดปิดส่วนกลาง)
+        {data?.updatedAt && ` · อัปเดต ${new Date(data.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}`}
       </div>
 
       {/* KPI */}
@@ -246,6 +258,6 @@ export default function MarketingPage() {
           </table>
         </Panel>
       </div>
-    </div>
+    </Shell>
   );
 }
