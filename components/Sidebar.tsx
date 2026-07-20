@@ -14,7 +14,9 @@ const NAV_MAIN = [
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
 ];
 // ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
+//   รายงาน = ของที่ดูบ่อย วางไว้บน · บัญชีโฆษณา = หน้าตั้งค่า
 const NAV_ADS = [
+  { href: "/ads/report", label: "รายงานโฆษณา", icon: BarChart3 },
   { href: "/ads", label: "บัญชีโฆษณา", icon: Radio },
 ];
 const NAV_OPS = [

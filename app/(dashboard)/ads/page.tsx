@@ -1,15 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Topbar from "@/components/Topbar";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download } from "lucide-react";
-
-// สีผ่าน validator (คู่นี้ CVD ΔE 32.3 — แยกออกชัดแม้ตาบอดสี)
-const C_FOLLOW = "#2563EB";
-const C_BLOCK  = "#D97706";
-
-interface DayStat { followers: number; reach: number; blocks: number }
-interface StatDoc { id: string; name: string; platform: string; updatedAt: string | null; daily: Record<string, DayStat> }
+import Link from "next/link";
+import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3 } from "lucide-react";
 
 interface TestResult {
   ok: boolean; name?: string; error?: string;
@@ -60,14 +53,6 @@ export default function AdsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
-  const [stats, setStats] = useState<StatDoc[]>([]);
-
-  const loadStats = useCallback(() => {
-    fetch("/api/adsources/sync")
-      .then(r => r.json())
-      .then(d => { if (!d.error) setStats(d.stats || []); })
-      .catch(() => { });
-  }, []);
 
   const runSync = async (id: string) => {
     setSyncing(id); setMsg(null);
@@ -78,8 +63,7 @@ export default function AdsPage() {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `error ${r.status}`);
-      setMsg({ kind: "ok", text: `ดึงข้อมูล "${d.name}" แล้ว +${d.added} วัน (มีทั้งหมด ${d.totalDays} วัน)${d.note ? ` · ${d.note}` : ""}` });
-      loadStats();
+      setMsg({ kind: "ok", text: `ดึงข้อมูล "${d.name}" แล้ว +${d.added} วัน (มีทั้งหมด ${d.totalDays} วัน) — ดูกราฟที่หน้ารายงานโฆษณา` });
     } catch (e) {
       setMsg({ kind: "err", text: e instanceof Error ? e.message : String(e) });
     } finally { setSyncing(null); }
@@ -109,7 +93,7 @@ export default function AdsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); loadStats(); }, [load, loadStats]);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
     if (!form.accountId.trim() || !form.name.trim()) {
@@ -152,8 +136,17 @@ export default function AdsPage() {
       <Topbar breadcrumb={["หน้าหลัก", "โฆษณา · Ads"]} title="โฆษณา · Ads" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: -4 }}>
-          ทะเบียนบัญชีโฆษณาสำหรับดึงตัวเลขจริงจากแพลตฟอร์ม (งบ/ทักแชท/lead) — แยกจากหน้า Lead ที่ทีมกรอกเอง
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: -4 }}>
+          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+            หน้านี้ใช้ <b>ตั้งค่าบัญชี</b> เท่านั้น — กราฟและสถิติดูที่หน้ารายงานโฆษณา
+          </div>
+          <Link href="/ads/report" style={{
+            display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 9, textDecoration: "none",
+            border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#1E40AF",
+            fontSize: 13, fontWeight: 600, padding: "8px 14px",
+          }}>
+            <BarChart3 size={15} /> ดูรายงานโฆษณา
+          </Link>
         </div>
 
         {msg && (
@@ -304,40 +297,6 @@ export default function AdsPage() {
                   </table>
                 </div>
               )}
-            </Panel>
-          );
-        })}
-
-        {/* กราฟผู้ติดตามรายวัน (จากข้อมูลที่ดึงมาเก็บแล้ว) */}
-        {stats.filter(s => Object.keys(s.daily || {}).length > 0).map(s => {
-          const rows = Object.entries(s.daily)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([d, v]) => ({
-              label: `${d.slice(6, 8)}/${d.slice(4, 6)}`,
-              "ผู้ติดตาม": v.followers,
-              "บล็อก": v.blocks,
-            }));
-          const last = rows[rows.length - 1];
-          const first = rows[0];
-          const growth = last && first ? last["ผู้ติดตาม"] - first["ผู้ติดตาม"] : 0;
-          return (
-            <Panel key={s.id} title={`ผู้ติดตามรายวัน — ${s.name}`}
-                   note={`${rows.length} วัน · เปลี่ยนแปลง ${growth >= 0 ? "+" : ""}${growth.toLocaleString("th-TH")} คน${s.updatedAt ? ` · ดึงล่าสุด ${new Date(s.updatedAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}` : ""}`}>
-              <div style={{ width: "100%", height: 280 }}>
-                <ResponsiveContainer>
-                  <LineChart data={rows} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F7" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11.5, fill: "#64748B" }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} minTickGap={18} />
-                    <YAxis tick={{ fontSize: 11.5, fill: "#64748B" }} axisLine={false} tickLine={false} width={52}
-                           tickFormatter={(v) => Number(v).toLocaleString("th-TH")} />
-                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12.5 }}
-                             formatter={(v) => Number(v).toLocaleString("th-TH")} />
-                    <Legend wrapperStyle={{ fontSize: 12.5, paddingTop: 6 }} />
-                    <Line type="monotone" dataKey="ผู้ติดตาม" stroke={C_FOLLOW} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="บล็อก" stroke={C_BLOCK} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
             </Panel>
           );
         })}
