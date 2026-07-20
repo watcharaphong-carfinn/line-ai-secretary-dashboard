@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Topbar from "@/components/Topbar";
-import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap } from "lucide-react";
+
+interface TestResult {
+  ok: boolean; name?: string; error?: string;
+  bot?: { displayName?: string; basicId?: string; chatMode?: string; premiumId?: string | null };
+  followers?: { status?: string; followers?: number; targetedReaches?: number; blocks?: number } | null;
+  followersNote?: string;
+}
 
 // แพลตฟอร์มที่เปิดใช้ตอนนี้ (Facebook รอรวม Business Manager ก่อน)
 const PLATFORMS = [
@@ -42,6 +49,23 @@ export default function AdsPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({ platform: "line", accountId: "", name: "", group: "", token: "" });
+  const [testing, setTesting] = useState<string | null>(null);
+  const [results, setResults] = useState<Record<string, TestResult>>({});
+
+  const runTest = async (id: string) => {
+    setTesting(id);
+    try {
+      const r = await fetch("/api/adsources/test", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const d: TestResult = await r.json();
+      setResults(prev => ({ ...prev, [id]: d }));
+      load();   // อัปเดตคอลัมน์ sync ล่าสุด
+    } catch (e) {
+      setResults(prev => ({ ...prev, [id]: { ok: false, error: e instanceof Error ? e.message : String(e) } }));
+    } finally { setTesting(null); }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -198,13 +222,43 @@ export default function AdsPage() {
                           <td style={{ padding: "9px 10px", color: s.lastError ? "#DC2626" : "#64748B", whiteSpace: "nowrap" }}>
                             {s.lastError ? `ผิดพลาด: ${s.lastError.slice(0, 40)}` : (s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "ยังไม่เคย")}
                           </td>
-                          <td style={{ padding: "9px 10px", textAlign: "right" }}>
-                            <button onClick={() => remove(s)} title="ลบ" style={{ border: "none", background: "transparent", cursor: "pointer", color: "#DC2626", display: "inline-flex", padding: 4 }}>
+                          <td style={{ padding: "9px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <button onClick={() => runTest(s.id)} disabled={testing === s.id} title="ทดสอบการเชื่อมต่อ"
+                                    style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "5px 9px",
+                                             cursor: testing === s.id ? "default" : "pointer", display: "inline-flex", alignItems: "center",
+                                             gap: 5, fontSize: 12, color: "#2563EB", marginRight: 6 }}>
+                              <PlugZap size={13} /> {testing === s.id ? "กำลังทดสอบ…" : "ทดสอบ"}
+                            </button>
+                            <button onClick={() => remove(s)} title="ลบ" style={{ border: "none", background: "transparent", cursor: "pointer", color: "#DC2626", display: "inline-flex", padding: 4, verticalAlign: "middle" }}>
                               <Trash2 size={15} />
                             </button>
                           </td>
                         </tr>
                       ))}
+                      {list.filter(s => results[s.id]).map(s => {
+                        const r = results[s.id];
+                        return (
+                          <tr key={`${s.id}-result`}>
+                            <td colSpan={7} style={{ padding: "10px 12px", background: r.ok ? "#F0FDF4" : "#FEF2F2", borderTop: "1px solid #E2E8F0" }}>
+                              {r.ok ? (
+                                <div style={{ fontSize: 12.5, color: "#166534", display: "flex", flexDirection: "column", gap: 4 }}>
+                                  <div><b>✅ {s.name} — เชื่อมต่อสำเร็จ</b></div>
+                                  {r.bot && <div>OA: {r.bot.displayName} ({r.bot.basicId}) · โหมดแชท: {r.bot.chatMode}</div>}
+                                  {r.followers?.status === "ready" ? (
+                                    <div>ผู้ติดตาม {Number(r.followers.followers || 0).toLocaleString("th-TH")} · เข้าถึงได้ {Number(r.followers.targetedReaches || 0).toLocaleString("th-TH")} · บล็อก {Number(r.followers.blocks || 0).toLocaleString("th-TH")}</div>
+                                  ) : (
+                                    <div style={{ color: "#B45309" }}>สถิติ: {r.followersNote || r.followers?.status || "ไม่มีข้อมูล"}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 12.5, color: "#B91C1C" }}>
+                                  <b>❌ {s.name} — {r.error}</b>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
