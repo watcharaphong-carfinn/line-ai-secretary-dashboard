@@ -7,14 +7,12 @@ import {
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
-const NAV_MAIN = [
-  { href: "/", label: "ภาพรวมระบบ", icon: LayoutDashboard },
-  { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
-];
-// งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี)
+// งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี) — ภาพรวม+วิเคราะห์อยู่ในนี้เพราะเป็นข้อมูลยอดปิด
 const NAV_CENTRAL = [
+  { href: "/", label: "ภาพรวม · ยอดปิด", icon: LayoutDashboard },
   { href: "/customers", label: "ลูกค้า · ยอดปิด", icon: Briefcase },
   { href: "/followup", label: "ติดตามงานค้าง", icon: ClipboardCheck },
+  { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
 ];
 // งานภายใน = ทีมการตลาด/Lead (ไฟล์ "รายชื่อส่งงาน ภายใน")
 const NAV_INTERNAL = [
@@ -66,7 +64,7 @@ function NavItem({ href, label, icon: Icon, active }: {
 }
 
 function NavSection({ label, items, pathname }: {
-  label: string; items: typeof NAV_MAIN; pathname: string;
+  label: string; items: typeof NAV_CENTRAL; pathname: string;
 }) {
   return (
     <>
@@ -120,13 +118,12 @@ export default function Sidebar() {
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: "#475569",
           textTransform: "uppercase", padding: "0 10px 10px",
-        }}>Main Menu</div>
+        }}>งานส่วนกลาง (ยอดขาย)</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {NAV_MAIN.map((item) => (
+          {NAV_CENTRAL.map((item) => (
             <NavItem key={item.href} {...item} active={pathname === item.href} />
           ))}
         </div>
-        <NavSection label="งานส่วนกลาง (ยอดขาย)" items={NAV_CENTRAL} pathname={pathname} />
         <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />
         <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />
         <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />

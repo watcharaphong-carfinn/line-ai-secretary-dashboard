@@ -156,7 +156,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก"]} title="Dashboard Overview · ภาพรวมระบบ" />
+      <Topbar breadcrumb={["งานส่วนกลาง", "ภาพรวม"]} title="ภาพรวม · ยอดปิด (งานส่วนกลาง)" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* error banner */}
