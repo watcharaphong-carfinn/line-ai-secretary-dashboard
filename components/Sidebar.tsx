@@ -3,15 +3,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio,
-  Server, Settings, Users, ClipboardList, X,
+  Server, Settings, Users, ClipboardList, Network, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 
 const NAV_MAIN = [
   { href: "/", label: "ภาพรวมระบบ", icon: LayoutDashboard },
-  { href: "/customers", label: "ฐานข้อมูลลูกค้า", icon: Briefcase },
-  { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
+];
+// งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี)
+const NAV_CENTRAL = [
+  { href: "/customers", label: "ลูกค้า · ยอดปิด", icon: Briefcase },
+];
+// งานภายใน = ทีมการตลาด/Lead (ไฟล์ "รายชื่อส่งงาน ภายใน")
+const NAV_INTERNAL = [
+  { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone },
 ];
 // ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
 //   รายงาน = ของที่ดูบ่อย วางไว้บน · บัญชีโฆษณา = หน้าตั้งค่า
@@ -23,6 +29,7 @@ const NAV_OPS = [
   { href: "/bot", label: "Bot Management", icon: Server },
 ];
 const NAV_SYS = [
+  { href: "/system", label: "โครงสร้างระบบ", icon: Network },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/users", label: "User Management", icon: Users },
   { href: "/audit", label: "Audit Logs", icon: ClipboardList },
@@ -118,6 +125,8 @@ export default function Sidebar() {
             <NavItem key={item.href} {...item} active={pathname === item.href} />
           ))}
         </div>
+        <NavSection label="งานส่วนกลาง (ยอดขาย)" items={NAV_CENTRAL} pathname={pathname} />
+        <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />
         <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />
         <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />
         <NavSection label="System" items={NAV_SYS} pathname={pathname} />
