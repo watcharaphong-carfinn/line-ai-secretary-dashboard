@@ -14,7 +14,7 @@ type Platform = typeof PLATFORMS[number];
 
 interface AdSource {
   id: string; platform: string; accountId: string; name: string;
-  group?: string; enabled: boolean; hasToken: boolean;
+  group?: string; enabled: boolean; hasToken: boolean; hasChannelSecret: boolean;
   addedBy?: string; addedAt?: string; lastSyncAt?: string; lastError?: string;
 }
 
@@ -50,6 +50,7 @@ export async function GET() {
         group: f.group?.stringValue || '',
         enabled: f.enabled?.booleanValue !== false,
         hasToken: !!f.token?.stringValue,          // ← บอกแค่ว่ามี/ไม่มี
+        hasChannelSecret: !!f.channelSecret?.stringValue,
         addedBy: f.addedBy?.stringValue,
         addedAt: f.addedAt?.stringValue,
         lastSyncAt: f.lastSyncAt?.stringValue,
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
   const name = String(body.name || '').trim();
   const group = String(body.group || '').trim();
   const token = String(body.token || '').trim();
+  const channelSecret = String(body.channelSecret || '').trim();
   const enabled = body.enabled !== false;
 
   if (!PLATFORMS.includes(platform)) return Response.json({ error: 'แพลตฟอร์มไม่ถูกต้อง' }, { status: 400 });
@@ -94,6 +96,7 @@ export async function POST(req: Request) {
     };
     const paths = Object.keys(fields);
     if (token) { fields.token = { stringValue: token }; paths.push('token'); }
+    if (channelSecret) { fields.channelSecret = { stringValue: channelSecret }; paths.push('channelSecret'); }
     const mask = paths.map(p => `updateMask.fieldPaths=${p}`).join('&');
 
     const r = await fetch(`${fs.base}/adsources/${encodeURIComponent(id)}?${mask}`, {

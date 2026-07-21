@@ -2,7 +2,11 @@
 import { useEffect, useState, useCallback } from "react";
 import Topbar from "@/components/Topbar";
 import Link from "next/link";
-import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3 } from "lucide-react";
+import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3, Copy } from "lucide-react";
+
+// URL ของบอท (สาธารณะ ไม่ลับ) — webhook "เวลาทักครั้งแรก" ยิงเข้าบอท ไม่ใช่แดชบอร์ด
+const BOT_URL = "https://line-ai-secretary-560617243929.asia-southeast3.run.app";
+const webhookUrl = (id: string) => `${BOT_URL}/webhook/inbound/${encodeURIComponent(id)}`;
 
 interface TestResult {
   ok: boolean; name?: string; error?: string;
@@ -19,7 +23,7 @@ const PLATFORMS = [
 
 interface AdSource {
   id: string; platform: string; accountId: string; name: string;
-  group?: string; enabled: boolean; hasToken: boolean;
+  group?: string; enabled: boolean; hasToken: boolean; hasChannelSecret?: boolean;
   addedBy?: string; addedAt?: string; lastSyncAt?: string; lastError?: string;
 }
 
@@ -49,7 +53,7 @@ export default function AdsPage() {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({ platform: "line", accountId: "", name: "", group: "", token: "" });
+  const [form, setForm] = useState({ platform: "line", accountId: "", name: "", group: "", token: "", channelSecret: "" });
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -109,7 +113,7 @@ export default function AdsPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `error ${r.status}`);
       setMsg({ kind: "ok", text: `บันทึก "${form.name}" แล้ว` });
-      setForm({ platform: form.platform, accountId: "", name: "", group: "", token: "" });
+      setForm({ platform: form.platform, accountId: "", name: "", group: "", token: "", channelSecret: "" });
       load();
     } catch (e) {
       setMsg({ kind: "err", text: e instanceof Error ? e.message : String(e) });
@@ -197,6 +201,13 @@ export default function AdsPage() {
                      type="password" autoComplete="new-password" placeholder="วาง token ที่นี่" style={{ ...inputStyle, marginTop: 5 }} />
             </label>
           </div>
+          {form.platform === "line" && (
+            <label style={{ fontSize: 12, color: "#64748B", display: "block", marginBottom: 14 }}>
+              Channel secret <span style={{ color: "#94A3B8" }}>(ไม่บังคับ · ใช้ยืนยัน webhook &quot;เวลาทักครั้งแรก&quot; · เว้นว่าง = ไม่ทับของเดิม)</span>
+              <input value={form.channelSecret} onChange={e => setForm({ ...form, channelSecret: e.target.value })}
+                     type="password" autoComplete="new-password" placeholder="วาง Channel secret จาก LINE Developers" style={{ ...inputStyle, marginTop: 5 }} />
+            </label>
+          )}
           <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 12 }}>
             💡 {PLATFORMS.find(p => p.id === form.platform)?.hint}
           </div>
@@ -295,6 +306,32 @@ export default function AdsPage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Webhook "เวลาทักครั้งแรก" — เฉพาะ LINE */}
+              {p.id === "line" && list.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #E2E8F0" }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>Webhook — นับ &quot;เวลาลูกค้าทักครั้งแรก&quot;</div>
+                  <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 12 }}>
+                    ก๊อป URL ไปวางใน LINE Developers Console → Messaging API → Webhook URL แล้วเปิด &quot;Use webhook&quot;
+                    · ระบบจะ log แค่เวลา ไม่ตอบลูกค้า
+                  </div>
+                  {list.map(s => (
+                    <div key={`${s.id}-wh`} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, minWidth: 90 }}>{s.name}</span>
+                      <code style={{ flex: 1, minWidth: 240, fontSize: 11.5, background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "6px 10px", overflowX: "auto", whiteSpace: "nowrap" }}>
+                        {webhookUrl(s.id)}
+                      </code>
+                      <button onClick={() => { navigator.clipboard?.writeText(webhookUrl(s.id)); setMsg({ kind: "ok", text: `ก๊อป Webhook URL ของ ${s.name} แล้ว` }); }}
+                              style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "6px 11px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#2563EB" }}>
+                        <Copy size={13} /> ก๊อป
+                      </button>
+                      <span style={{ fontSize: 11.5, color: s.hasChannelSecret ? "#059669" : "#D97706" }}>
+                        {s.hasChannelSecret ? "🔒 verify แล้ว" : "⚠️ ยังไม่ใส่ secret"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </Panel>
