@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio,
+  LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio, ClipboardCheck,
   Server, Settings, Users, ClipboardList, Network, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
@@ -14,6 +14,7 @@ const NAV_MAIN = [
 // งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี)
 const NAV_CENTRAL = [
   { href: "/customers", label: "ลูกค้า · ยอดปิด", icon: Briefcase },
+  { href: "/followup", label: "ติดตามงานค้าง", icon: ClipboardCheck },
 ];
 // งานภายใน = ทีมการตลาด/Lead (ไฟล์ "รายชื่อส่งงาน ภายใน")
 const NAV_INTERNAL = [

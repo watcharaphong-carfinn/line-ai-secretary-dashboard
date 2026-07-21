@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { PieChart as PieIcon } from "lucide-react";
+import { PieChart as PieIcon, ArrowRight } from "lucide-react";
 
 // ชุดสี categorical ผ่าน validator (worst CVD ΔE 8.6 · contrast ผ่านทั้งหมด)
 const PALETTE = ["#2563EB", "#D97706", "#7C3AED", "#059669", "#DC2626", "#0891B2", "#DB2777"];
@@ -24,9 +25,11 @@ const RANGES = [
 ];
 
 export default function StatusDonut() {
+  const router = useRouter();
   const [agg, setAgg] = useState<Agg | null>(null);
   const [loading, setLoading] = useState(true);
   const [rangeIdx, setRangeIdx] = useState(1); // เริ่มที่ 3 เดือน
+  const goFollowup = (status?: string) => router.push(status && status !== "อื่นๆ" ? `/followup?status=${encodeURIComponent(status)}` : "/followup");
 
   useEffect(() => {
     fetch("/api/deals").then(r => r.json()).then(d => setAgg(d.agg || null)).catch(() => {}).finally(() => setLoading(false));
@@ -91,7 +94,7 @@ export default function StatusDonut() {
           <ResponsiveContainer>
             <PieChart>
               <Pie data={slices} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={62} outerRadius={92}
-                   paddingAngle={2} stroke="#fff" strokeWidth={2}>
+                   paddingAngle={2} stroke="#fff" strokeWidth={2} onClick={(_, i) => goFollowup(slices[i]?.status)} style={{ cursor: "pointer" }}>
                 {slices.map((s, i) => <Cell key={s.status} fill={colorOf(i, s.status)} />)}
               </Pie>
               <Tooltip
@@ -113,15 +116,19 @@ export default function StatusDonut() {
           {slices.map((s, i) => {
             const pct = total ? Math.round((s.count / total) * 100) : 0;
             return (
-              <div key={s.status} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button key={s.status} onClick={() => goFollowup(s.status)} title={`ดูเคส "${s.status}"`}
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none", border: "none", padding: "3px 4px", borderRadius: 7, cursor: "pointer", textAlign: "left" }}>
                 <span style={{ width: 11, height: 11, borderRadius: 3, background: colorOf(i, s.status), flexShrink: 0 }} />
                 <span style={{ fontSize: 12.5, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.status}</span>
                 <span style={{ fontSize: 12.5, color: "#64748B", whiteSpace: "nowrap" }}>
                   <b style={{ color: "#0F172A" }}>{nf(s.count)}</b> · {pct}%
                 </span>
-              </div>
+              </button>
             );
           })}
+          <button onClick={() => goFollowup()} style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "#2563EB", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "4px" }}>
+            ดู &amp; ติดตามงานค้างทั้งหมด <ArrowRight size={14} />
+          </button>
         </div>
       </div>
     </div>
