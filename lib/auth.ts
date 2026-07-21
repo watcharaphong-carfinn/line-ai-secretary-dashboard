@@ -6,7 +6,11 @@ export const SESSION_COOKIE = "cf_session";
 export const STATE_COOKIE = "cf_oauth_state";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 วัน
 
-export interface SessionUser { email: string; name?: string; role: string; exp: number; }
+import { type Perms, type Section, ALL_PERMS, NO_PERMS, normalizePerms, canView, canEdit, canDelete } from "./sections";
+export * from "./sections";
+
+export interface SessionUser { email: string; name?: string; role: string; perms?: Perms; exp: number; }
+
 
 const b64url = (s: string | Buffer) => Buffer.from(s).toString("base64url");
 
@@ -46,27 +50,30 @@ async function gcpProject(): Promise<string> {
   return (await r.text()).trim();
 }
 
-// คืน role ถ้าอนุญาตให้เข้า, คืน null ถ้าไม่อนุญาต
-export async function resolveRole(email: string): Promise<string | null> {
+// คืน { role, perms } ถ้าอนุญาตให้เข้า, คืน null ถ้าไม่อนุญาต
+//   super admin = ทุกสิทธิ์ · มีใน Firestore = ตามที่ตั้ง · โดเมน carfinn.com (ยังไม่ถูกเพิ่ม) = login ได้แต่ยังไม่มีสิทธิ์
+export async function resolveAccess(email: string): Promise<{ role: string; perms: Perms } | null> {
   const e = email.toLowerCase();
-  if (e === SUPER_ADMIN) return "super_admin";
+  if (e === SUPER_ADMIN) return { role: "super_admin", perms: ALL_PERMS() };
 
-  // หาใน Firestore allowlist
   try {
     const [t, p] = await Promise.all([gcpToken(), gcpProject()]);
     const url = `https://firestore.googleapis.com/v1/projects/${p}/databases/(default)/documents/users/${encodeURIComponent(e)}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${t}` }, signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const doc = await r.json();
-      return doc?.fields?.role?.stringValue || "viewer";
+      const role = doc?.fields?.role?.stringValue || "member";
+      let perms: Perms;
+      try { perms = normalizePerms(doc?.fields?.perms?.stringValue ? JSON.parse(doc.fields.perms.stringValue) : undefined); }
+      catch { perms = NO_PERMS(); }
+      return { role, perms };
     }
-  } catch { /* ignore — ตกไปเช็คโดเมน */ }
+  } catch { /* ตกไปเช็คโดเมน */ }
 
-  // โดเมนที่อนุญาต (ALLOWED_DOMAIN เช่น carfinn.com) → role viewer
   const domain = (process.env.ALLOWED_DOMAIN || "").toLowerCase().trim();
-  if (domain && e.endsWith(`@${domain}`)) return "viewer";
+  if (domain && e.endsWith(`@${domain}`)) return { role: "member", perms: NO_PERMS() };
 
-  return null; // ไม่อนุญาต
+  return null;
 }
 
 export const cfg = {
@@ -82,6 +89,16 @@ export const cfg = {
 export async function getSessionUser(): Promise<SessionUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   return verifySession(token, cfg.authSecret);
+}
+
+// ── ด่านตรวจสิทธิ์สำหรับ API (ความปลอดภัยจริง) ──────────────────────────────
+//   ใช้: const g = await gate("central"); if ("error" in g) return g.error;
+export async function gate(section: Section, action: "v" | "e" | "d" = "v"): Promise<{ user: SessionUser } | { error: Response }> {
+  const u = await getSessionUser();
+  if (!u) return { error: Response.json({ error: "unauthorized" }, { status: 401 }) };
+  const ok = action === "e" ? canEdit(u, section) : action === "d" ? canDelete(u, section) : canView(u, section);
+  if (!ok) return { error: Response.json({ error: "forbidden" }, { status: 403 }) };
+  return { user: u };
 }
 
 // helper เขียน/ลบ Firestore (REST + metadata token) — ใช้ใน /api/users

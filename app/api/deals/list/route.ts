@@ -1,12 +1,11 @@
-import { getSessionUser, firestore } from "@/lib/auth";
+import { gate, firestore } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 // อ่าน per-deal รายเดือน (มี PII) จาก Firestore deals/<yearBE-month>
 //   ต้อง login (ทุก role) — ข้อมูลลูกค้า ไม่เปิดสาธารณะ
 export async function GET(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const g = await gate("central"); if ("error" in g) return g.error;
 
   const month = (new URL(req.url).searchParams.get("month") || "").trim(); // เช่น "2569-6"
   if (!/^\d{4}-\d{1,2}$/.test(month)) return Response.json({ error: "bad month" }, { status: 400 });

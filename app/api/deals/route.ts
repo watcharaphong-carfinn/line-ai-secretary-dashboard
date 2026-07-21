@@ -1,4 +1,4 @@
-import { getSessionUser } from "@/lib/auth";
+import { gate } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +25,7 @@ async function projectId(): Promise<string> {
 }
 
 export async function GET() {
-  // ต้อง login — สรุปยอดปิด/ผลงานรายเซลล์ ไม่เปิดสาธารณะ
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-
+  const g = await gate("central"); if ("error" in g) return g.error;
   try {
     const [token, project] = await Promise.all([metadataToken(), projectId()]);
     const url = `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/dealagg/agg`;

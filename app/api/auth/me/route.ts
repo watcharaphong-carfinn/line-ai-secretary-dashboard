@@ -9,6 +9,6 @@ export async function GET() {
   return Response.json({
     authEnabled: cfg.authEnabled,
     configured: !!(cfg.clientId && cfg.clientSecret && cfg.authSecret && cfg.dashboardUrl),
-    user: user ? { email: user.email, name: user.name, role: user.role } : null,
+    user: user ? { email: user.email, name: user.name, role: user.role, perms: user.perms || null } : null,
   });
 }

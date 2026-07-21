@@ -1,4 +1,4 @@
-import { getSessionUser, firestore, logAudit } from "@/lib/auth";
+import { getSessionUser, gate, firestore, logAudit, normalizePerms, NO_PERMS, type Perms } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,9 +24,10 @@ async function projectId(): Promise<string> {
 }
 const docsBase = (p: string) => `https://firestore.googleapis.com/v1/projects/${p}/databases/(default)/documents`;
 
-interface UserRow { email: string; role: string; addedBy?: string; addedAt?: string; }
+interface UserRow { email: string; role: string; perms: Perms; addedBy?: string; addedAt?: string; }
 
 export async function GET() {
+  const g = await gate("admin"); if ("error" in g) return g.error;
   try {
     const [t, p] = await Promise.all([token(), projectId()]);
     const res = await fetch(`${docsBase(p)}/users?pageSize=300`, {
@@ -38,9 +39,13 @@ export async function GET() {
       const data = await res.json();
       users = (data.documents || []).map((d: { name: string; fields?: Record<string, { stringValue?: string }> }) => {
         const f = d.fields || {};
+        let perms: Perms;
+        try { perms = normalizePerms(f.perms?.stringValue ? JSON.parse(f.perms.stringValue) : undefined); }
+        catch { perms = NO_PERMS(); }
         return {
           email: f.email?.stringValue || d.name.split('/').pop() || '',
-          role: f.role?.stringValue || 'viewer',
+          role: f.role?.stringValue || 'member',
+          perms,
           addedBy: f.addedBy?.stringValue,
           addedAt: f.addedAt?.stringValue,
         };
@@ -48,13 +53,12 @@ export async function GET() {
     } else if (res.status !== 404) {
       throw new Error(`firestore ${res.status}`);
     }
-    // seed super admin ถ้ายังไม่มีในลิสต์
+    // seed super admin ถ้ายังไม่มีในลิสต์ (ทุกสิทธิ์)
     if (!users.some(u => u.email.toLowerCase() === SUPER_ADMIN)) {
-      users.unshift({ email: SUPER_ADMIN, role: 'super_admin' });
+      users.unshift({ email: SUPER_ADMIN, role: 'super_admin', perms: normalizePerms(undefined) });
     }
-    // เรียง: super_admin > admin > viewer
-    const rank: Record<string, number> = { super_admin: 0, admin: 1, viewer: 2 };
-    users.sort((a, b) => (rank[a.role] ?? 9) - (rank[b.role] ?? 9) || a.email.localeCompare(b.email));
+    // เรียง: super_admin ก่อน แล้วตามอีเมล
+    users.sort((a, b) => (a.role === 'super_admin' ? 0 : 1) - (b.role === 'super_admin' ? 0 : 1) || a.email.localeCompare(b.email));
     return Response.json({ users, superAdmin: SUPER_ADMIN });
   } catch (err: unknown) {
     // ถึง Firestore ไม่ได้ ก็ยังโชว์ super admin (กันหน้า 404/พัง)
@@ -79,27 +83,32 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const email = String(body.email || '').trim().toLowerCase();
-  const role = String(body.role || 'viewer');
   if (!EMAIL_RE.test(email)) return Response.json({ error: 'อีเมลไม่ถูกต้อง' }, { status: 400 });
-  if (!['admin', 'viewer'].includes(role)) return Response.json({ error: 'role ไม่ถูกต้อง' }, { status: 400 });
+  // SSO: บังคับเฉพาะโดเมน carfinn.com
+  const domain = (process.env.ALLOWED_DOMAIN || 'carfinn.com').toLowerCase().trim();
+  if (!email.endsWith(`@${domain}`)) return Response.json({ error: `ต้องเป็นอีเมล @${domain} เท่านั้น` }, { status: 400 });
   if (email === SUPER_ADMIN) return Response.json({ error: 'เป็น Super Admin อยู่แล้ว' }, { status: 400 });
+
+  const perms = normalizePerms(body.perms);
 
   try {
     const fs = await firestore();
-    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}`, {
+    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}?updateMask.fieldPaths=email&updateMask.fieldPaths=role&updateMask.fieldPaths=perms&updateMask.fieldPaths=addedBy&updateMask.fieldPaths=addedAt`, {
       method: 'PATCH',
       headers: fs.headers,
       body: JSON.stringify({ fields: {
         email: { stringValue: email },
-        role: { stringValue: role },
+        role: { stringValue: 'member' },
+        perms: { stringValue: JSON.stringify(perms) },
         addedBy: { stringValue: admin.email },
         addedAt: { stringValue: new Date().toISOString() },
       } }),
       signal: AbortSignal.timeout(10000),
     });
     if (!r.ok) throw new Error(`firestore ${r.status}`);
-    await logAudit("user_add", admin.email, `${email} (${role})`);
-    return Response.json({ ok: true, email, role });
+    const summary = Object.entries(perms).filter(([, p]) => p.v).map(([s]) => s).join(",") || "ไม่มีสิทธิ์";
+    await logAudit("user_perms", admin.email, `${email} → ${summary}`);
+    return Response.json({ ok: true, email, perms });
   } catch (err: unknown) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

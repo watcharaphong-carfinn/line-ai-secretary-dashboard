@@ -6,6 +6,8 @@ import {
   Server, Settings, Users, ClipboardList, Network, X,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
+import { useAccess } from "./access-context";
+import { canView, type Section } from "@/lib/sections";
 
 // งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี) — ภาพรวม+วิเคราะห์อยู่ในนี้เพราะเป็นข้อมูลยอดปิด
 const NAV_CENTRAL = [
@@ -86,6 +88,8 @@ function NavSection({ label, items, pathname }: {
 export default function Sidebar() {
   const pathname = usePathname();
   const { open, setOpen } = useDrawer();
+  const { user } = useAccess();
+  const show = (s: Section) => canView(user, s); // super_admin เห็นหมด · คนอื่นตามสิทธิ์ · ยังโหลดไม่เสร็จ (user=null) = ซ่อนไว้ก่อน
   return (
     <aside className={`app-sidebar${open ? " open" : ""}`} style={{
       width: 280, flexShrink: 0, background: "#0F172A",
@@ -115,19 +119,21 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "18px 14px", overflowY: "auto" }}>
-        <div style={{
-          fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: "#475569",
-          textTransform: "uppercase", padding: "0 10px 10px",
-        }}>งานส่วนกลาง (ยอดขาย)</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {NAV_CENTRAL.map((item) => (
-            <NavItem key={item.href} {...item} active={pathname === item.href} />
-          ))}
-        </div>
-        <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />
-        <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />
-        <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />
-        <NavSection label="System" items={NAV_SYS} pathname={pathname} />
+        {show("central") && (<>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: "#475569",
+            textTransform: "uppercase", padding: "0 10px 10px",
+          }}>งานส่วนกลาง (ยอดขาย)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {NAV_CENTRAL.map((item) => (
+              <NavItem key={item.href} {...item} active={pathname === item.href} />
+            ))}
+          </div>
+        </>)}
+        {show("marketing") && <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />}
+        {show("ads") && <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />}
+        {show("admin") && <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />}
+        {show("admin") && <NavSection label="System" items={NAV_SYS} pathname={pathname} />}
       </nav>
     </aside>
   );

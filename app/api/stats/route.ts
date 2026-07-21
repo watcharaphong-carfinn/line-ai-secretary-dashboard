@@ -1,11 +1,9 @@
-import { getSessionUser } from "@/lib/auth";
+import { gate } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // ต้อง login — สถิติยอดขาย ไม่เปิดสาธารณะ
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  const g = await gate("central"); if ("error" in g) return g.error;
 
   const url = process.env.LINE_SECRETARY_URL;
   const key = process.env.DASHBOARD_API_KEY;

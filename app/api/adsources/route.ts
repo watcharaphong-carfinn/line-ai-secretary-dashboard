@@ -1,4 +1,4 @@
-import { getSessionUser, firestore, logAudit } from "@/lib/auth";
+import { gate, firestore, logAudit } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -21,16 +21,8 @@ interface AdSource {
 const docId = (platform: string, accountId: string) =>
   `${platform}_${accountId}`.replace(/[^\w.-]/g, '_');
 
-async function requireSuperAdmin() {
-  const u = await getSessionUser();
-  return u && u.role === 'super_admin' ? u : null;
-}
-
 export async function GET() {
-  // ดูรายการ: ต้อง login (ทุก role) — แต่ไม่เห็น token
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 });
-
+  const g = await gate("ads"); if ("error" in g) return g.error;
   try {
     const fs = await firestore();
     const r = await fetch(`${fs.base}/adsources?pageSize=300`, {
@@ -65,8 +57,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const admin = await requireSuperAdmin();
-  if (!admin) return Response.json({ error: 'forbidden' }, { status: 403 });
+  const g = await gate("ads", "e"); if ("error" in g) return g.error;
+  const admin = g.user;
 
   const body = await req.json().catch(() => ({}));
   const platform = String(body.platform || '').trim().toLowerCase() as Platform;
@@ -113,8 +105,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const admin = await requireSuperAdmin();
-  if (!admin) return Response.json({ error: 'forbidden' }, { status: 403 });
+  const g = await gate("ads", "d"); if ("error" in g) return g.error;
+  const admin = g.user;
 
   const id = (new URL(req.url).searchParams.get('id') || '').trim();
   if (!id) return Response.json({ error: 'missing id' }, { status: 400 });

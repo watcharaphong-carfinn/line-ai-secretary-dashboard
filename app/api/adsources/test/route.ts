@@ -1,4 +1,4 @@
-import { getSessionUser, firestore } from "@/lib/auth";
+import { gate, firestore } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,8 +33,7 @@ async function saveStatus(id: string, ok: boolean, errMsg: string) {
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  const g = await gate("ads", "e"); if ("error" in g) return g.error;
 
   const body = await req.json().catch(() => ({}));
   const id = String(body.id || '').trim();

@@ -1,24 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
-import { Shield, ShieldCheck, Eye, AlertCircle, RefreshCw, Crown, Trash2, UserPlus } from "lucide-react";
+import { Shield, AlertCircle, RefreshCw, Crown, Trash2, UserPlus, Pencil, X, Eye, Edit3, Trash } from "lucide-react";
+import { SECTIONS, SECTION_LABELS, NO_PERMS, normalizePerms, type Perms, type Section } from "@/lib/sections";
 
-interface UserRow { email: string; role: string; addedBy?: string; addedAt?: string; }
+interface UserRow { email: string; role: string; perms: Perms; addedBy?: string; addedAt?: string; }
 interface Resp { users: UserRow[]; superAdmin: string; warn?: string }
 
-const ROLE_META: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  super_admin: { label: "Super Admin", color: "#7C3AED", bg: "#F5F3FF", icon: <Crown size={13} /> },
-  admin:       { label: "Admin",       color: "#2563EB", bg: "#EFF6FF", icon: <ShieldCheck size={13} /> },
-  viewer:      { label: "Viewer",      color: "#059669", bg: "#ECFDF5", icon: <Eye size={13} /> },
-};
+const emptyForm = () => ({ email: "", perms: NO_PERMS() });
 
 export default function UsersPage() {
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [myRole, setMyRole] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("viewer");
+  const [form, setForm] = useState<{ email: string; perms: Perms }>(emptyForm());
+  const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -36,14 +33,26 @@ export default function UsersPage() {
   const isSuper = myRole === "super_admin";
   const users = data?.users || [];
 
-  const addUser = async () => {
+  // แก้ไข/ลบ ต้องเปิด "ดู" อัตโนมัติ
+  const setPerm = (sec: Section, key: "v" | "e" | "d", val: boolean) => {
+    setForm(f => {
+      const p = { ...f.perms, [sec]: { ...f.perms[sec], [key]: val } };
+      if ((key === "e" || key === "d") && val) p[sec].v = true;
+      if (key === "v" && !val) { p[sec].e = false; p[sec].d = false; }
+      return { ...f, perms: p };
+    });
+  };
+  const startEdit = (u: UserRow) => { setEditing(u.email); setForm({ email: u.email, perms: normalizePerms(u.perms) }); setMsg(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const cancel = () => { setEditing(null); setForm(emptyForm()); };
+
+  const save = async () => {
     setBusy(true); setMsg(null);
     try {
-      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) });
+      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email, perms: form.perms }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      setMsg({ type: "ok", text: `เพิ่ม ${j.email} (${j.role}) แล้ว` }); setEmail("");
-      await load(true);
+      setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว (มีผลรอบ login ถัดไปของผู้ใช้)` });
+      cancel(); await load(true);
     } catch (e) { setMsg({ type: "err", text: e instanceof Error ? e.message : String(e) }); }
     finally { setBusy(false); }
   };
@@ -59,14 +68,17 @@ export default function UsersPage() {
     } catch (e) { setMsg({ type: "err", text: e instanceof Error ? e.message : String(e) }); }
   };
 
+  const chk: React.CSSProperties = { width: 16, height: 16, cursor: "pointer" };
+  const anyView = SECTIONS.some(s => form.perms[s].v);
+
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "User Management"]} title="User Management · จัดการผู้ใช้" />
+      <Topbar breadcrumb={["ผู้ดูแลระบบ", "จัดการผู้ใช้"]} title="จัดการผู้ใช้ · สิทธิ์รายหัวข้อ" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 12, padding: "14px 18px", fontSize: 13.5, color: "#1E40AF", display: "flex", gap: 10, alignItems: "flex-start" }}>
           <Shield size={16} style={{ marginTop: 1, flexShrink: 0 }} />
-          <div>เฉพาะอีเมลในลิสต์นี้ (+ โดเมน carfinn.com) เข้าระบบได้ — <b>Super Admin</b> เพิ่ม/ลบผู้ใช้และกำหนดสิทธิ์ได้</div>
+          <div>เข้าระบบด้วย Google เฉพาะอีเมล <b>@carfinn.com</b> · <b>Super Admin</b> กำหนดได้ว่าใครเห็นหัวข้อไหน + ดู/แก้ไข/ลบ · เปลี่ยนสิทธิ์แล้วมีผลรอบ login ถัดไปของผู้ใช้คนนั้น</div>
         </div>
 
         {msg && (
@@ -76,26 +88,51 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* add user (super admin) */}
+        {/* add / edit (super admin) */}
         {isSuper && (
           <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "18px 22px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, fontSize: 15, fontWeight: 700 }}>
-              <UserPlus size={17} color="#2563EB" /> เพิ่มผู้ใช้
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 700 }}>
+                {editing ? <><Pencil size={17} color="#2563EB" /> แก้ไขสิทธิ์: {editing}</> : <><UserPlus size={17} color="#2563EB" /> เพิ่มผู้ใช้ + กำหนดสิทธิ์</>}
+              </div>
+              {editing && <button onClick={cancel} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748B", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }}><X size={14} /> ยกเลิก</button>}
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <input value={email} onChange={e => setEmail(e.target.value)} placeholder="อีเมล (เช่น name@carfinn.com)" type="email"
-                style={{ flex: "1 1 280px", border: "1px solid #E2E8F0", borderRadius: 9, padding: "10px 13px", fontSize: 13.5, outline: "none" }} />
-              <select value={role} onChange={e => setRole(e.target.value)}
-                style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "10px 13px", fontSize: 13.5, background: "#fff", cursor: "pointer" }}>
-                <option value="viewer">Viewer (ดูอย่างเดียว)</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button onClick={addUser} disabled={busy || !email}
-                style={{ border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: busy || !email ? "default" : "pointer",
-                  background: busy || !email ? "#CBD5E1" : "#2563EB", color: "#fff" }}>
-                {busy ? "กำลังเพิ่ม…" : "เพิ่ม"}
-              </button>
+
+            <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} disabled={!!editing}
+              placeholder="อีเมล (เช่น name@carfinn.com)" type="email"
+              style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 9, padding: "10px 13px", fontSize: 13.5, outline: "none", marginBottom: 16, opacity: editing ? 0.6 : 1 }} />
+
+            {/* ตารางสิทธิ์ */}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ color: "#94A3B8", textAlign: "left", fontSize: 11.5 }}>
+                    <th style={{ padding: "8px 10px", fontWeight: 700 }}>หัวข้อ</th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Eye size={13} /> ดู</span></th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Edit3 size={13} /> แก้ไข</span></th>
+                    <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Trash size={13} /> ลบ</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SECTIONS.map(sec => (
+                    <tr key={sec} style={{ borderTop: "1px solid #F1F5F9" }}>
+                      <td style={{ padding: "10px 10px", fontWeight: 600 }}>{SECTION_LABELS[sec]}</td>
+                      <td style={{ padding: "10px 10px", textAlign: "center" }}><input type="checkbox" style={chk} checked={form.perms[sec].v} onChange={e => setPerm(sec, "v", e.target.checked)} /></td>
+                      <td style={{ padding: "10px 10px", textAlign: "center" }}><input type="checkbox" style={chk} checked={form.perms[sec].e} onChange={e => setPerm(sec, "e", e.target.checked)} /></td>
+                      <td style={{ padding: "10px 10px", textAlign: "center" }}><input type="checkbox" style={chk} checked={form.perms[sec].d} onChange={e => setPerm(sec, "d", e.target.checked)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* ติ๊ก แก้ไข/ลบ จะเปิด &quot;ดู&quot; ให้อัตโนมัติ · หน้าส่วนใหญ่ตอนนี้ดูอย่างเดียว (แก้ไข/ลบ มีผลกับ จัดการผู้ใช้/บัญชีโฆษณา)</div>
+
+            <button onClick={save} disabled={busy || !form.email || !anyView}
+              style={{ marginTop: 14, border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: busy || !form.email || !anyView ? "default" : "pointer",
+                background: busy || !form.email || !anyView ? "#CBD5E1" : "#2563EB", color: "#fff" }}>
+              {busy ? "กำลังบันทึก…" : editing ? "อัปเดตสิทธิ์" : "เพิ่มผู้ใช้"}
+            </button>
+            {!anyView && form.email && <span style={{ marginLeft: 10, fontSize: 12, color: "#D97706" }}>ต้องเลือกสิทธิ์ &quot;ดู&quot; อย่างน้อย 1 หัวข้อ</span>}
           </div>
         )}
 
@@ -107,45 +144,49 @@ export default function UsersPage() {
               <RefreshCw size={13} color="#64748B" style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
             </button>
           </div>
-          {data?.warn && (
-            <div style={{ padding: "10px 22px", fontSize: 12, color: "#B45309", background: "#FFFBEB", borderBottom: "1px solid #FDE68A" }}>
-              ⚠️ อ่าน Firestore ไม่สำเร็จ — แสดงเฉพาะ Super Admin
-            </div>
-          )}
+          {data?.warn && <div style={{ padding: "10px 22px", fontSize: 12, color: "#B45309", background: "#FFFBEB", borderBottom: "1px solid #FDE68A" }}>⚠️ อ่าน Firestore ไม่สำเร็จ — แสดงเฉพาะ Super Admin</div>}
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", minWidth: 540, borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", minWidth: 720, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ color: "#94A3B8", textAlign: "left", fontSize: 11.5, background: "#F8FAFC" }}>
                   <th style={{ padding: "11px 22px", fontWeight: 700 }}>ผู้ใช้</th>
-                  <th style={{ padding: "11px 14px", fontWeight: 700 }}>สิทธิ์</th>
-                  <th style={{ padding: "11px 14px", fontWeight: 700 }}>เพิ่มโดย</th>
+                  <th style={{ padding: "11px 14px", fontWeight: 700 }}>สิทธิ์รายหัวข้อ</th>
                   {isSuper && <th style={{ padding: "11px 14px", fontWeight: 700, textAlign: "right" }}></th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={4} style={{ padding: 28, textAlign: "center", color: "#94A3B8", fontSize: 13 }}>กำลังโหลด…</td></tr>
+                  <tr><td colSpan={3} style={{ padding: 28, textAlign: "center", color: "#94A3B8", fontSize: 13 }}>กำลังโหลด…</td></tr>
                 ) : users.map((u) => {
-                  const rm = ROLE_META[u.role] || ROLE_META.viewer;
+                  const isS = u.role === "super_admin";
                   return (
                     <tr key={u.email} style={{ borderTop: "1px solid #F1F5F9" }}>
                       <td style={{ padding: "13px 22px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: rm.color, color: "#fff", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{(u.email[0] || "?").toUpperCase()}</div>
-                          <span style={{ fontSize: 13.5, fontWeight: 600 }}>{u.email}</span>
+                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: isS ? "#7C3AED" : "#2563EB", color: "#fff", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{(u.email[0] || "?").toUpperCase()}</div>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 600 }}>{u.email}</div>
+                            {isS && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#7C3AED" }}><Crown size={11} /> Super Admin (ทุกสิทธิ์)</span>}
+                          </div>
                         </div>
                       </td>
                       <td style={{ padding: "13px 14px" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: rm.color, background: rm.bg, padding: "4px 10px", borderRadius: 999 }}>{rm.icon} {rm.label}</span>
+                        {isS ? <span style={{ fontSize: 12, color: "#7C3AED" }}>ทุกหัวข้อ</span> : (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {SECTIONS.filter(s => u.perms[s].v).map(s => {
+                              const acts = [u.perms[s].v && "ดู", u.perms[s].e && "แก้", u.perms[s].d && "ลบ"].filter(Boolean).join("/");
+                              return <span key={s} style={{ fontSize: 11.5, fontWeight: 600, color: "#334155", background: "#F1F5F9", padding: "3px 9px", borderRadius: 999 }}>{SECTION_LABELS[s].split(" ")[0]}: {acts}</span>;
+                            })}
+                            {!SECTIONS.some(s => u.perms[s].v) && <span style={{ fontSize: 12, color: "#94A3B8" }}>ยังไม่มีสิทธิ์</span>}
+                          </div>
+                        )}
                       </td>
-                      <td style={{ padding: "13px 14px", fontSize: 13, color: "#94A3B8" }}>{u.addedBy || (u.role === "super_admin" ? "— (เจ้าของระบบ)" : "—")}</td>
                       {isSuper && (
-                        <td style={{ padding: "13px 14px", textAlign: "right" }}>
-                          {u.role !== "super_admin" && (
-                            <button onClick={() => delUser(u.email)} title="ลบสิทธิ์" style={{ border: "1px solid #FECACA", background: "#fff", borderRadius: 8, padding: "6px 9px", cursor: "pointer", display: "inline-flex" }}>
-                              <Trash2 size={14} color="#DC2626" />
-                            </button>
-                          )}
+                        <td style={{ padding: "13px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
+                          {!isS && (<>
+                            <button onClick={() => startEdit(u)} title="แก้ไขสิทธิ์" style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#475569", marginRight: 6 }}><Pencil size={13} /> แก้ไข</button>
+                            <button onClick={() => delUser(u.email)} title="ลบสิทธิ์" style={{ border: "1px solid #FECACA", background: "#fff", borderRadius: 8, padding: "6px 9px", cursor: "pointer", display: "inline-flex" }}><Trash2 size={14} color="#DC2626" /></button>
+                          </>)}
                         </td>
                       )}
                     </tr>
@@ -156,9 +197,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {!loading && !isSuper && (
-          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>* เฉพาะ Super Admin เท่านั้นที่เพิ่ม/ลบผู้ใช้ได้</div>
-        )}
+        {!loading && !isSuper && <div style={{ fontSize: 12.5, color: "#94A3B8" }}>* เฉพาะ Super Admin เท่านั้นที่จัดการผู้ใช้/สิทธิ์ได้</div>}
       </div>
     </>
   );

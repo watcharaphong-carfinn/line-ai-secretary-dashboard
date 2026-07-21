@@ -1,4 +1,4 @@
-import { getSessionUser, firestore, logAudit } from "@/lib/auth";
+import { gate, firestore, logAudit } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +27,8 @@ async function inBatches<T, R>(items: T[], size: number, fn: (x: T) => Promise<R
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user || user.role !== 'super_admin') return Response.json({ error: 'forbidden' }, { status: 403 });
+  const g = await gate("ads", "e"); if ("error" in g) return g.error;
+  const user = g.user;
 
   const body = await req.json().catch(() => ({}));
   const id = String(body.id || '').trim();
@@ -117,8 +117,7 @@ export async function POST(req: Request) {
 
 // อ่านสถิติที่เก็บไว้ (ทุก source) — ใช้วาดกราฟ
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  const g = await gate("ads"); if ("error" in g) return g.error;
   try {
     const fs = await firestore();
     const r = await fetch(`${fs.base}/adstats?pageSize=100`, { headers: fs.headers, signal: AbortSignal.timeout(10000) });

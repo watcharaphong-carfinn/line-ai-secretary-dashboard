@@ -1,4 +1,4 @@
-import { getSessionUser } from "@/lib/auth";
+import { gate } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,9 +31,7 @@ interface StatDoc {
 }
 
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) return Response.json({ error: 'unauthorized' }, { status: 401 });
-
+  const g = await gate("ads"); if ("error" in g) return g.error;
   try {
     const [t, p] = await Promise.all([token(), projectId()]);
     const base = `https://firestore.googleapis.com/v1/projects/${p}/databases/(default)/documents`;

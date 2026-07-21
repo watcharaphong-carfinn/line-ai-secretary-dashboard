@@ -1,12 +1,12 @@
-import { getSessionUser, logAudit } from "@/lib/auth";
+import { gate, logAudit } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
 // สั่งบอท sync ข้อมูล — proxy ไปที่ /admin/sync ของบอท (ใช้ DASHBOARD_API_KEY ฝั่ง server)
 //   บอทตอบกลับทันทีแล้วรัน background (sync ใช้เวลา 40s+)
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user || user.role !== 'super_admin') return Response.json({ error: 'forbidden' }, { status: 403 });
+  const g = await gate("admin", "e"); if ("error" in g) return g.error;
+  const user = g.user;
 
   const url = process.env.LINE_SECRETARY_URL;
   const key = process.env.DASHBOARD_API_KEY;

@@ -1,12 +1,11 @@
-import { getSessionUser, firestore } from "@/lib/auth";
+import { gate, firestore } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 interface AuditRow { ts: string; action: string; actor: string; detail: string; }
 
 export async function GET() {
-  const u = await getSessionUser();
-  if (!u || u.role !== "super_admin") return Response.json({ error: "forbidden" }, { status: 403 });
+  const g = await gate("admin"); if ("error" in g) return g.error;
 
   try {
     const fs = await firestore();
