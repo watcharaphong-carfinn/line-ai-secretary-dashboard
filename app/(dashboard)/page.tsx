@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
 import DealSummary from "@/components/DealSummary";
+import StatusDonut from "@/components/StatusDonut";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -273,6 +274,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ── สรุปสถานะเคส (โดนัท + เลือกช่วงเวลา) ───────────────────────────── */}
+        <StatusDonut />
 
         {/* ── สรุปงานรายเคส (รีไฟแนนซ์/จำนำ) ─────────────────────────────────── */}
         <DealSummary />
