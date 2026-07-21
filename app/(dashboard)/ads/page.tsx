@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Topbar from "@/components/Topbar";
 import Link from "next/link";
-import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3, Copy } from "lucide-react";
+import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3, Copy, Pencil, X } from "lucide-react";
 
 // URL ของบอท (สาธารณะ ไม่ลับ) — webhook "เวลาทักครั้งแรก" ยิงเข้าบอท ไม่ใช่แดชบอร์ด
 const BOT_URL = "https://line-ai-secretary-560617243929.asia-southeast3.run.app";
@@ -54,6 +54,18 @@ export default function AdsPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({ platform: "line", accountId: "", name: "", group: "", token: "", channelSecret: "" });
+  const [editing, setEditing] = useState<AdSource | null>(null);
+
+  const startEdit = (s: AdSource) => {
+    setEditing(s);
+    setForm({ platform: s.platform, accountId: s.accountId, name: s.name, group: s.group || "", token: "", channelSecret: "" });
+    setMsg(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cancelEdit = () => {
+    setEditing(null);
+    setForm({ platform: "line", accountId: "", name: "", group: "", token: "", channelSecret: "" });
+  };
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -114,6 +126,7 @@ export default function AdsPage() {
       if (!r.ok) throw new Error(d.error || `error ${r.status}`);
       setMsg({ kind: "ok", text: `บันทึก "${form.name}" แล้ว` });
       setForm({ platform: form.platform, accountId: "", name: "", group: "", token: "", channelSecret: "" });
+      setEditing(null);
       load();
     } catch (e) {
       setMsg({ kind: "err", text: e instanceof Error ? e.message : String(e) });
@@ -170,18 +183,27 @@ export default function AdsPage() {
         </div>
 
         {/* เพิ่มบัญชี */}
-        <Panel title="เพิ่ม / แก้ไขบัญชี" note="ใส่ Account ID เดิมซ้ำ = แก้ไขข้อมูลเดิม · เว้น token ว่าง = ไม่ทับ token เดิม">
+        <Panel title={editing ? `แก้ไขบัญชี: ${editing.name}` : "เพิ่มบัญชีใหม่"}
+               note={editing ? "แก้เฉพาะช่องที่ต้องการ · เว้น Token/Channel secret ว่าง = ไม่ทับของเดิม" : "เว้น token/secret ว่างได้ ใส่ทีหลังก็ได้"}>
+          {editing && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 12px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, fontSize: 12.5, color: "#1E40AF" }}>
+              <Pencil size={13} /> กำลังแก้ไข <b>{editing.name}</b> ({editing.accountId})
+              <button onClick={cancelEdit} style={{ marginLeft: "auto", border: "none", background: "transparent", cursor: "pointer", color: "#1E40AF", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                <X size={13} /> ยกเลิก
+              </button>
+            </div>
+          )}
           <div className="grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
             <label style={{ fontSize: 12, color: "#64748B" }}>
               แพลตฟอร์ม
-              <select value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} style={{ ...inputStyle, marginTop: 5, cursor: "pointer" }}>
+              <select value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })} disabled={!!editing} style={{ ...inputStyle, marginTop: 5, cursor: editing ? "not-allowed" : "pointer", opacity: editing ? 0.6 : 1 }}>
                 {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </label>
             <label style={{ fontSize: 12, color: "#64748B" }}>
               Account ID
-              <input value={form.accountId} onChange={e => setForm({ ...form, accountId: e.target.value })}
-                     placeholder={form.platform === "line" ? "เช่น @carfinn" : "เช่น 690123456789"} style={{ ...inputStyle, marginTop: 5 }} />
+              <input value={form.accountId} onChange={e => setForm({ ...form, accountId: e.target.value })} disabled={!!editing}
+                     placeholder={form.platform === "line" ? "เช่น @carfinn" : "เช่น 690123456789"} style={{ ...inputStyle, marginTop: 5, opacity: editing ? 0.6 : 1 }} />
             </label>
             <label style={{ fontSize: 12, color: "#64748B" }}>
               ชื่อที่เรียก
@@ -216,7 +238,7 @@ export default function AdsPage() {
             background: saving ? "#93C5FD" : "#2563EB", color: "#fff", fontSize: 13.5, fontWeight: 600,
             padding: "9px 16px", cursor: saving ? "default" : "pointer",
           }}>
-            <Plus size={15} /> {saving ? "กำลังบันทึก…" : "บันทึกบัญชี"}
+            <Plus size={15} /> {saving ? "กำลังบันทึก…" : editing ? "อัปเดตบัญชี" : "บันทึกบัญชี"}
           </button>
         </Panel>
 
@@ -260,6 +282,11 @@ export default function AdsPage() {
                             {s.lastError ? `ผิดพลาด: ${s.lastError.slice(0, 40)}` : (s.lastSyncAt ? new Date(s.lastSyncAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" }) : "ยังไม่เคย")}
                           </td>
                           <td style={{ padding: "9px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <button onClick={() => startEdit(s)} title="แก้ไข"
+                                    style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "5px 9px",
+                                             cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#475569", marginRight: 6 }}>
+                              <Pencil size={13} /> แก้ไข
+                            </button>
                             <button onClick={() => runTest(s.id)} disabled={testing === s.id} title="ทดสอบการเชื่อมต่อ"
                                     style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "5px 9px",
                                              cursor: testing === s.id ? "default" : "pointer", display: "inline-flex", alignItems: "center",
