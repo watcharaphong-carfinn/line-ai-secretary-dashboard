@@ -101,18 +101,6 @@ export default function CustomersPage() {
     return out;
   }, [rows, q, fType, fStatus, fBank, sort]);
 
-  // แบ่งตามสถานะ (นับจากทั้งเดือน + ยอดปิดรวมต่อสถานะ) → กราฟด้านบน
-  const statusBreakdown = useMemo(() => {
-    const m: Record<string, { count: number; close: number }> = {};
-    for (const d of rows) {
-      const s = d.status || "(ไม่ระบุ)";
-      (m[s] = m[s] || { count: 0, close: 0 }).count++;
-      m[s].close += d.closeAmount || 0;
-    }
-    return Object.entries(m).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.count - a.count);
-  }, [rows]);
-  const maxStatus = statusBreakdown[0]?.count || 1;
-
   const clickSort = (key: SortKey, num?: boolean) =>
     setSort(s => s.key === key ? { key, dir: (s.dir === 1 ? -1 : 1) } : { key, dir: num ? -1 : 1 });
 
@@ -156,46 +144,6 @@ export default function CustomersPage() {
             Export CSV ({result.length})
           </button>
         </div>
-
-        {/* แบ่งตามสถานะ — กราฟแท่งแนวนอน (กดเพื่อกรอง) */}
-        {statusBreakdown.length > 0 && (
-          <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>แบ่งตามสถานะ · {monthLabel(month)}</div>
-              {fStatus && (
-                <button onClick={() => setFStatus("")} style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 11.5, color: "#64748B", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <X size={12} /> ล้างตัวกรอง
-                </button>
-              )}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              {statusBreakdown.map(({ status, count, close }) => {
-                const st = statusStyle(status);
-                const pct = rows.length ? Math.round((count / rows.length) * 100) : 0;
-                const active = fStatus === status;
-                return (
-                  <button key={status} onClick={() => setFStatus(active ? "" : status)}
-                    title={`กรองเฉพาะ "${status}"`}
-                    style={{ display: "block", width: "100%", textAlign: "left", background: active ? "#F8FAFC" : "transparent",
-                             border: active ? "1px solid #E2E8F0" : "1px solid transparent", borderRadius: 9, padding: "6px 8px", cursor: "pointer" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, minWidth: 0 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: 3, background: st.c, flexShrink: 0 }} />
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{status}</span>
-                      </span>
-                      <span style={{ fontSize: 12, color: "#64748B", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        <b style={{ color: "#0F172A" }}>{count}</b> เคส · {pct}% · {fmtFull(close)}
-                      </span>
-                    </div>
-                    <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999, overflow: "hidden" }}>
-                      <div style={{ width: `${Math.max((count / maxStatus) * 100, 2)}%`, height: "100%", background: st.c, borderRadius: 999 }} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* สรุปผลที่กรอง */}
         <div style={{ fontSize: 13, color: "#64748B" }}>
