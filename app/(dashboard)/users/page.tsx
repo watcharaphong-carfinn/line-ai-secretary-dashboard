@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
-import { Shield, AlertCircle, RefreshCw, Crown, Trash2, UserPlus, Pencil, X, Eye, Edit3, Trash } from "lucide-react";
+import { Shield, AlertCircle, RefreshCw, Crown, Trash2, UserPlus, Pencil, X, Eye, Edit3, Trash, Copy, Mail } from "lucide-react";
 import { SECTIONS, SECTION_LABELS, NO_PERMS, normalizePerms, type Perms, type Section } from "@/lib/sections";
 
 interface UserRow { email: string; role: string; perms: Perms; addedBy?: string; addedAt?: string; }
@@ -18,6 +18,15 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [invited, setInvited] = useState<string | null>(null);
+
+  const DASH_URL = "https://line-ai-secretary-dashboard-560617243929.asia-southeast3.run.app";
+  const inviteText = (em: string) =>
+    `คุณได้รับสิทธิ์เข้าใช้ CarFinn Dashboard แล้ว 🎉\n\nเข้าที่: ${DASH_URL}\nกด "Sign in with Google" แล้วเลือกอีเมล ${em}\n(ต้องเป็นอีเมล @carfinn.com เท่านั้น)`;
+  const copyInvite = (em: string) => {
+    navigator.clipboard?.writeText(inviteText(em));
+    setMsg({ type: "ok", text: `คัดลอกข้อความเชิญของ ${em} แล้ว — เอาไปส่งทาง LINE/เมลได้เลย` });
+  };
 
   const load = async (silent = false) => {
     silent ? setRefreshing(true) : setLoading(true);
@@ -52,7 +61,8 @@ export default function UsersPage() {
       const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perms: form.perms }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว (มีผลรอบ login ถัดไปของผู้ใช้)` });
+      setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว` });
+      if (!editing) setInvited(j.email);
       cancel(); await load(true);
     } catch (e) { setMsg({ type: "err", text: e instanceof Error ? e.message : String(e) }); }
     finally { setBusy(false); }
@@ -86,6 +96,27 @@ export default function UsersPage() {
           <div style={{ borderRadius: 10, padding: "10px 14px", fontSize: 13, display: "flex", gap: 8, alignItems: "center",
             background: msg.type === "ok" ? "#ECFDF5" : "#FEF2F2", border: `1px solid ${msg.type === "ok" ? "#A7F3D0" : "#FECACA"}`, color: msg.type === "ok" ? "#059669" : "#DC2626" }}>
             {msg.type === "ok" ? "✅" : <AlertCircle size={14} />} {msg.text}
+          </div>
+        )}
+
+        {/* กล่องเชิญ — หลังเพิ่มผู้ใช้ (ระบบยังไม่ส่งเมลอัตโนมัติ → ก๊อปข้อความไปส่งเอง) */}
+        {invited && (
+          <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 12, padding: "14px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 13.5, color: "#166534" }}>
+                <b>เพิ่ม {invited} แล้ว</b> — เขา login เองได้เลยด้วย Google<br />
+                <span style={{ fontSize: 12.5, color: "#15803D" }}>ระบบยังไม่ส่งเมลอัตโนมัติ · ก๊อปข้อความเชิญไปส่งทาง LINE/เมลได้เลย</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => copyInvite(invited)} style={{ border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", background: "#059669", color: "#fff", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Copy size={14} /> คัดลอกข้อความเชิญ
+                </button>
+                <button onClick={() => setInvited(null)} title="ปิด" style={{ border: "1px solid #BBF7D0", background: "#fff", borderRadius: 9, padding: "8px 10px", cursor: "pointer", color: "#166534", display: "inline-flex" }}>
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: "#166534", background: "#fff", borderRadius: 8, padding: "10px 12px", whiteSpace: "pre-wrap", border: "1px solid #DCFCE7" }}>{inviteText(invited)}</div>
           </div>
         )}
 
@@ -199,6 +230,7 @@ export default function UsersPage() {
                       {isSuper && (
                         <td style={{ padding: "13px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
                           {!isS && (<>
+                            <button onClick={() => copyInvite(u.email)} title="คัดลอกข้อความเชิญ" style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#059669", marginRight: 6 }}><Mail size={13} /> เชิญ</button>
                             <button onClick={() => startEdit(u)} title="แก้ไขสิทธิ์" style={{ border: "1px solid #E2E8F0", background: "#fff", borderRadius: 8, padding: "6px 10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#475569", marginRight: 6 }}><Pencil size={13} /> แก้ไข</button>
                             <button onClick={() => delUser(u.email)} title="ลบสิทธิ์" style={{ border: "1px solid #FECACA", background: "#fff", borderRadius: 8, padding: "6px 9px", cursor: "pointer", display: "inline-flex" }}><Trash2 size={14} color="#DC2626" /></button>
                           </>)}
