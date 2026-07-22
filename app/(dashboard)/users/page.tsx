@@ -42,13 +42,14 @@ export default function UsersPage() {
       return { ...f, perms: p };
     });
   };
-  const startEdit = (u: UserRow) => { setEditing(u.email); setForm({ email: u.email, perms: normalizePerms(u.perms) }); setMsg(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const startEdit = (u: UserRow) => { setEditing(u.email); setForm({ email: "", perms: normalizePerms(u.perms) }); setMsg(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const cancel = () => { setEditing(null); setForm(emptyForm()); };
 
   const save = async () => {
+    const email = editing || `${form.email.trim().toLowerCase()}@carfinn.com`;
     setBusy(true); setMsg(null);
     try {
-      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email, perms: form.perms }) });
+      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perms: form.perms }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว (มีผลรอบ login ถัดไปของผู้ใช้)` });
@@ -98,9 +99,17 @@ export default function UsersPage() {
               {editing && <button onClick={cancel} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748B", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5 }}><X size={14} /> ยกเลิก</button>}
             </div>
 
-            <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} disabled={!!editing}
-              placeholder="อีเมล (เช่น name@carfinn.com)" type="email"
-              style={{ width: "100%", border: "1px solid #E2E8F0", borderRadius: 9, padding: "10px 13px", fontSize: 13.5, outline: "none", marginBottom: 16, opacity: editing ? 0.6 : 1 }} />
+            {editing ? (
+              <div style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "10px 13px", fontSize: 13.5, background: "#F8FAFC", color: "#64748B", marginBottom: 16 }}>{editing}</div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "stretch", marginBottom: 16, border: "1px solid #E2E8F0", borderRadius: 9, overflow: "hidden" }}>
+                <input value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value.split("@")[0].replace(/\s/g, "").toLowerCase() }))}
+                  placeholder="ชื่อผู้ใช้ (เช่น somchai)" autoComplete="off"
+                  style={{ flex: 1, border: "none", padding: "10px 13px", fontSize: 13.5, outline: "none" }} />
+                <span style={{ display: "flex", alignItems: "center", padding: "0 14px", background: "#F1F5F9", color: "#475569", fontSize: 13.5, fontWeight: 600, borderLeft: "1px solid #E2E8F0" }}>@carfinn.com</span>
+              </div>
+            )}
 
             {/* ตารางสิทธิ์ */}
             <div style={{ overflowX: "auto" }}>
@@ -127,12 +136,18 @@ export default function UsersPage() {
             </div>
             <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* ติ๊ก แก้ไข/ลบ จะเปิด &quot;ดู&quot; ให้อัตโนมัติ · หน้าส่วนใหญ่ตอนนี้ดูอย่างเดียว (แก้ไข/ลบ มีผลกับ จัดการผู้ใช้/บัญชีโฆษณา)</div>
 
-            <button onClick={save} disabled={busy || !form.email || !anyView}
-              style={{ marginTop: 14, border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: busy || !form.email || !anyView ? "default" : "pointer",
-                background: busy || !form.email || !anyView ? "#CBD5E1" : "#2563EB", color: "#fff" }}>
-              {busy ? "กำลังบันทึก…" : editing ? "อัปเดตสิทธิ์" : "เพิ่มผู้ใช้"}
-            </button>
-            {!anyView && form.email && <span style={{ marginLeft: 10, fontSize: 12, color: "#D97706" }}>ต้องเลือกสิทธิ์ &quot;ดู&quot; อย่างน้อย 1 หัวข้อ</span>}
+            {(() => {
+              const noEmail = !editing && !form.email.trim();
+              const off = busy || noEmail || !anyView;
+              return (<>
+                <button onClick={save} disabled={off}
+                  style={{ marginTop: 14, border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: off ? "default" : "pointer",
+                    background: off ? "#CBD5E1" : "#2563EB", color: "#fff" }}>
+                  {busy ? "กำลังบันทึก…" : editing ? "อัปเดตสิทธิ์" : "เพิ่มผู้ใช้"}
+                </button>
+                {!anyView && !noEmail && <span style={{ marginLeft: 10, fontSize: 12, color: "#D97706" }}>ต้องเลือกสิทธิ์ &quot;ดู&quot; อย่างน้อย 1 หัวข้อ</span>}
+              </>);
+            })()}
           </div>
         )}
 
