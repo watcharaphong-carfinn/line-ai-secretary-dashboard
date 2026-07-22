@@ -44,6 +44,8 @@ interface Agg {
   totalLeads: number;
   byAgent: Record<string, Bucket>; byLeasing: Record<string, Bucket>;
   byStatus: Record<string, Bucket>; byProduct: Record<string, Bucket>;
+  byAgentMonth?: Record<string, Record<string, Bucket>>;
+  byLeasingMonth?: Record<string, Record<string, Bucket>>;
 }
 interface ApiRes { funnel: FunnelRow[]; agg: Agg | null; leadCount: number; updatedAt: string | null; note?: string }
 
@@ -81,6 +83,7 @@ export default function MarketingPage() {
   const [data, setData] = useState<ApiRes | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [breakMonth, setBreakMonth] = useState("");   // "" = รวมทุกเดือน · "yearBE-month" = เดือนนั้น
 
   useEffect(() => {
     fetch("/api/marketing")
@@ -123,9 +126,13 @@ export default function MarketingPage() {
 
   const rank = (obj: Record<string, Bucket> | undefined) =>
     Object.entries(obj || {}).sort((a, b) => b[1].count - a[1].count);
-  const leasing = rank(agg?.byLeasing);
-  const agents = rank(agg?.byAgent);
+  // เดือนที่มีข้อมูล (เรียงใหม่→เก่า) สำหรับ dropdown
+  const breakMonths = Object.keys(agg?.byLeasingMonth || agg?.byAgentMonth || {})
+    .sort((a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return by - ay || bm - am; });
+  const leasing = rank(breakMonth ? agg?.byLeasingMonth?.[breakMonth] : agg?.byLeasing);
+  const agents = rank(breakMonth ? agg?.byAgentMonth?.[breakMonth] : agg?.byAgent);
   const maxLeasing = leasing[0]?.[1].count || 1;
+  const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
 
   return (
     <Shell>
@@ -213,7 +220,17 @@ export default function MarketingPage() {
         </div>
       </Panel>
 
-      {/* ลีสซิ่ง + คนส่งงาน */}
+      {/* ลีสซิ่ง + คนส่งงาน — เลือกดูรายเดือนได้ */}
+      {breakMonths.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ส่งลีสซิ่ง / คนส่งงาน:</span>
+          <select value={breakMonth} onChange={e => setBreakMonth(e.target.value)}
+            style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "7px 12px", fontSize: 13, background: "#fff", cursor: "pointer" }}>
+            <option value="">รวมทุกเดือน</option>
+            {breakMonths.map(mk => <option key={mk} value={mk}>{monthLabel(mk)}</option>)}
+          </select>
+        </div>
+      )}
       <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
         <Panel title="ส่งลีสซิ่งแต่ละเจ้า" note="จำนวนเคสที่ส่ง (1 เคสส่งหลายเจ้า = นับทุกเจ้า)">
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
