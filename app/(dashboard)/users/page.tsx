@@ -61,7 +61,8 @@ export default function UsersPage() {
       const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perms: form.perms }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว` });
+      const mailTxt = editing ? "" : j.emailed === true ? " · ส่งอีเมลเชิญแล้ว ✉️" : j.emailed === false ? ` · ⚠️ ส่งอีเมลไม่สำเร็จ (${j.emailError || "ดูข้อความเชิญด้านล่าง"})` : " · (ยังไม่เปิดส่งอีเมลอัตโนมัติ)";
+      setMsg({ type: "ok", text: `${editing ? "อัปเดตสิทธิ์" : "เพิ่ม"} ${j.email} แล้ว${mailTxt}` });
       if (!editing) setInvited(j.email);
       cancel(); await load(true);
     } catch (e) { setMsg({ type: "err", text: e instanceof Error ? e.message : String(e) }); }

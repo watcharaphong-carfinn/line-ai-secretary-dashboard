@@ -51,8 +51,8 @@ jobs:
             --min-instances=0 \
             --max-instances=2 \
             --service-account=${{ secrets.GCP_DEPLOYER_SA }} \
-            --set-env-vars=LINE_SECRETARY_URL=${{ secrets.LINE_SECRETARY_URL }},GOOGLE_CLIENT_ID=560617243929-hg397a61hl4v8kc0c8ds1dimkkils8v4.apps.googleusercontent.com,DASHBOARD_URL=https://line-ai-secretary-dashboard-560617243929.asia-southeast3.run.app,ALLOWED_DOMAIN=carfinn.com,AUTH_ENABLED=true \
-            --set-secrets=DASHBOARD_API_KEY=DASHBOARD_API_KEY:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest \
+            --set-env-vars=LINE_SECRETARY_URL=${{ secrets.LINE_SECRETARY_URL }},GOOGLE_CLIENT_ID=560617243929-hg397a61hl4v8kc0c8ds1dimkkils8v4.apps.googleusercontent.com,DASHBOARD_URL=https://line-ai-secretary-dashboard-560617243929.asia-southeast3.run.app,ALLOWED_DOMAIN=carfinn.com,AUTH_ENABLED=true,GMAIL_SENDER=noreply@carfinn.com,EMAIL_FROM=CarFinn Dashboard <noreply@carfinn.com> \
+            --set-secrets=DASHBOARD_API_KEY=DASHBOARD_API_KEY:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,GCS_CLIENT_EMAIL=GCS_CLIENT_EMAIL:latest,GCS_PRIVATE_KEY=GCS_PRIVATE_KEY:latest \
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --quiet
 

@@ -1,4 +1,5 @@
 import { getSessionUser, gate, firestore, logAudit, normalizePerms, NO_PERMS, type Perms } from "@/lib/auth";
+import { sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
 
@@ -108,7 +109,17 @@ export async function POST(req: Request) {
     if (!r.ok) throw new Error(`firestore ${r.status}`);
     const summary = Object.entries(perms).filter(([, p]) => p.v).map(([s]) => s).join(",") || "ไม่มีสิทธิ์";
     await logAudit("user_perms", admin.email, `${email} → ${summary}`);
-    return Response.json({ ok: true, email, perms });
+
+    // ส่งอีเมลเชิญ (เฉพาะเพิ่มใหม่ + ตั้งค่า email แล้ว) — best-effort ไม่ให้พังทั้ง action
+    let emailed: boolean | null = null; let emailError: string | undefined;
+    if (body.sendInvite !== false && emailConfigured()) {
+      const dash = process.env.DASHBOARD_URL || "";
+      const res = await sendEmail(email, "คุณได้รับสิทธิ์เข้าใช้ CarFinn Dashboard", inviteEmailHtml(email, dash))
+        .catch(e => ({ ok: false, error: String(e) }));
+      emailed = res.ok; if (!res.ok) emailError = res.error;
+      await logAudit(res.ok ? "invite_sent" : "invite_failed", admin.email, `${email}${res.ok ? "" : " · " + (res.error || "")}`);
+    }
+    return Response.json({ ok: true, email, perms, emailed, emailError });
   } catch (err: unknown) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }
