@@ -37,7 +37,8 @@ export const MODULES: PortalModule[] = [
     id: "agent",
     label: "Agent",
     sublabel: "หลังบ้าน Admin",
-    externalUrl: "https://admin-agent.carfinn.com",
+    internalPath: "/agent",              // ฝังใน shell (URL อยู่ที่ internal.carfinn.com)
+    externalUrl: "https://admin-agent.carfinn.com", // fallback (เปิดตรง)
     icon: "agent",
     color: "#10B981",
   },
@@ -45,6 +46,7 @@ export const MODULES: PortalModule[] = [
     id: "prices",
     label: "ราคารถ",
     sublabel: "ราคากลาง · มือสอง",
+    internalPath: "/prices",
     externalUrl: "https://carprice.carfinn.com",
     icon: "prices",
     color: "#F59E0B",
