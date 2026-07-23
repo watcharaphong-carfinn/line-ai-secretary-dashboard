@@ -9,6 +9,9 @@ import { useDrawer } from "./drawer-context";
 import { useAccess } from "./access-context";
 import { canView, type Section } from "@/lib/sections";
 
+// สีหัวข้อกลุ่มเมนู — สว่างพอให้อ่านชัดบนพื้นเข้ม (#0F172A)
+const LABEL_COLOR = "#94A3B8";
+
 // งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี) — ภาพรวม+วิเคราะห์อยู่ในนี้เพราะเป็นข้อมูลยอดปิด
 const NAV_CENTRAL = [
   { href: "/", label: "ภาพรวม · ยอดปิด", icon: LayoutDashboard },
@@ -16,13 +19,10 @@ const NAV_CENTRAL = [
   { href: "/followup", label: "ติดตามงานค้าง", icon: ClipboardCheck },
   { href: "/analytics", label: "วิเคราะห์ · Analytics", icon: BarChart3 },
 ];
-// งานภายใน = ทีมการตลาด/Lead (ไฟล์ "รายชื่อส่งงาน ภายใน")
-const NAV_INTERNAL = [
-  { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone },
-];
-// งานเซล = ผลการส่งงานของทีมเซล (ลีสซิ่ง/คนส่งงาน/เหตุผลไม่อนุมัติ) — สิทธิ์แยก section "sales"
-const NAV_SALES = [
-  { href: "/sales", label: "งานเซล · ส่งงาน", icon: Send },
+// งานภายใน = ทีมการตลาด/Lead + งานเซล (ไฟล์ "รายชื่อส่งงาน ภายใน") — แต่ละเมนูคุมสิทธิ์แยก section
+const NAV_INTERNAL: { href: string; label: string; icon: React.ElementType; section: Section }[] = [
+  { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone, section: "marketing" },
+  { href: "/sales", label: "งานเซล · ส่งงาน", icon: Send, section: "sales" },
 ];
 // ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
 //   รายงาน = ของที่ดูบ่อย วางไว้บน · บัญชีโฆษณา = หน้าตั้งค่า
@@ -70,12 +70,12 @@ function NavItem({ href, label, icon: Icon, active }: {
 }
 
 function NavSection({ label, items, pathname }: {
-  label: string; items: typeof NAV_CENTRAL; pathname: string;
+  label: string; items: { href: string; label: string; icon: React.ElementType }[]; pathname: string;
 }) {
   return (
     <>
       <div style={{
-        fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: "#475569",
+        fontSize: 11, fontWeight: 700, letterSpacing: "0.13em", color: LABEL_COLOR,
         textTransform: "uppercase", padding: "20px 10px 10px",
       }}>
         {label}
@@ -125,7 +125,7 @@ export default function Sidebar() {
       <nav style={{ flex: 1, padding: "18px 14px", overflowY: "auto" }}>
         {show("central") && (<>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: "#475569",
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.13em", color: LABEL_COLOR,
             textTransform: "uppercase", padding: "0 10px 10px",
           }}>งานส่วนกลาง (ยอดขาย)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -134,8 +134,14 @@ export default function Sidebar() {
             ))}
           </div>
         </>)}
-        {show("marketing") && <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />}
-        {show("sales") && <NavSection label="งานเซล" items={NAV_SALES} pathname={pathname} />}
+        {/* งานภายใน — การตลาด + งานเซล อยู่กลุ่มเดียวกัน แต่แต่ละเมนูโชว์ตามสิทธิ์ของตัวเอง */}
+        {(show("marketing") || show("sales")) && (
+          <NavSection
+            label="งานภายใน (การตลาด/Lead)"
+            items={NAV_INTERNAL.filter(it => show(it.section))}
+            pathname={pathname}
+          />
+        )}
         {show("ads") && <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />}
         {show("admin") && <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />}
         {show("admin") && <NavSection label="System" items={NAV_SYS} pathname={pathname} />}
