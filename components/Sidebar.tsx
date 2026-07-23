@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio, ClipboardCheck,
-  Server, Settings, Users, ClipboardList, Network, X,
+  Server, Settings, Users, ClipboardList, Network, X, Send,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 import { useAccess } from "./access-context";
@@ -19,6 +19,10 @@ const NAV_CENTRAL = [
 // งานภายใน = ทีมการตลาด/Lead (ไฟล์ "รายชื่อส่งงาน ภายใน")
 const NAV_INTERNAL = [
   { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone },
+];
+// งานเซล = ผลการส่งงานของทีมเซล (ลีสซิ่ง/คนส่งงาน/เหตุผลไม่อนุมัติ) — สิทธิ์แยก section "sales"
+const NAV_SALES = [
+  { href: "/sales", label: "งานเซล · ส่งงาน", icon: Send },
 ];
 // ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
 //   รายงาน = ของที่ดูบ่อย วางไว้บน · บัญชีโฆษณา = หน้าตั้งค่า
@@ -131,6 +135,7 @@ export default function Sidebar() {
           </div>
         </>)}
         {show("marketing") && <NavSection label="งานภายใน (การตลาด/Lead)" items={NAV_INTERNAL} pathname={pathname} />}
+        {show("sales") && <NavSection label="งานเซล" items={NAV_SALES} pathname={pathname} />}
         {show("ads") && <NavSection label="Ads Platform" items={NAV_ADS} pathname={pathname} />}
         {show("admin") && <NavSection label="Operations" items={NAV_OPS} pathname={pathname} />}
         {show("admin") && <NavSection label="System" items={NAV_SYS} pathname={pathname} />}

@@ -85,7 +85,6 @@ export default function MarketingPage() {
   const [data, setData] = useState<ApiRes | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [breakMonth, setBreakMonth] = useState("");   // "" = รวมทุกเดือน · "yearBE-month" = เดือนนั้น
 
   useEffect(() => {
     fetch("/api/marketing")
@@ -126,31 +125,6 @@ export default function MarketingPage() {
     ทักแชท: f.chats, "รับ lead": f.leads, ส่งงาน: f.submitted,
     งบโฆษณา: Math.round(f.adCost), รายได้: Math.round(f.revenue),
   }));
-
-  const rank = (obj: Record<string, Bucket> | undefined) =>
-    Object.entries(obj || {}).sort((a, b) => b[1].count - a[1].count);
-  // เดือนที่มีข้อมูล (เรียงใหม่→เก่า) สำหรับ dropdown
-  const breakMonths = Array.from(new Set([
-    ...Object.keys(agg?.byLeasingMonth || {}),
-    ...Object.keys(agg?.byAgentMonth || {}),
-    ...Object.keys(agg?.byReasonMonth || {}),
-  ])).sort((a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return by - ay || bm - am; });
-  const leasing = rank(breakMonth ? agg?.byLeasingMonth?.[breakMonth] : agg?.byLeasing);
-  const agents = rank(breakMonth ? agg?.byAgentMonth?.[breakMonth] : agg?.byAgent);
-  const maxLeasing = leasing[0]?.[1].count || 1;
-  // ยอดรวมท้ายตาราง (ตามช่วงเดือนที่เลือก)
-  const sumBuckets = (rows: [string, Bucket][]) => rows.reduce(
-    (a, [, v]) => ({ count: a.count + v.count, approved: a.approved + v.approved, pending: a.pending + v.pending, rejected: a.rejected + v.rejected }),
-    { count: 0, approved: 0, pending: 0, rejected: 0 });
-  const leasingSum = sumBuckets(leasing);
-  const agentSum = sumBuckets(agents);
-  const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
-
-  // เหตุผลที่ไม่อนุมัติ — ตามเดือนที่เลือก (เรียงมาก→น้อย)
-  const reasonSrc = breakMonth ? (agg?.byReasonMonth?.[breakMonth] || {}) : (agg?.byReason || {});
-  const reasons = Object.entries(reasonSrc).sort((a, b) => b[1] - a[1]);
-  const reasonTotal = reasons.reduce((s, [, n]) => s + n, 0);
-  const maxReason = reasons[0]?.[1] || 1;
 
   return (
     <Shell>
@@ -254,106 +228,11 @@ export default function MarketingPage() {
         </div>
       </Panel>
 
-      {/* ลีสซิ่ง + คนส่งงาน — เลือกดูรายเดือนได้ */}
-      {breakMonths.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>เลือกดูรายเดือน (ลีสซิ่ง / คนส่งงาน / เหตุผลไม่อนุมัติ):</span>
-          <select value={breakMonth} onChange={e => setBreakMonth(e.target.value)}
-            style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "7px 12px", fontSize: 13, background: "#fff", cursor: "pointer" }}>
-            <option value="">รวมทุกเดือน</option>
-            {breakMonths.map(mk => <option key={mk} value={mk}>{monthLabel(mk)}</option>)}
-          </select>
-        </div>
-      )}
-      <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-        <Panel title="ส่งลีสซิ่งแต่ละเจ้า" note="จำนวนเคสที่ส่ง (1 เคสส่งหลายเจ้า = นับทุกเจ้า)">
-          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-            {leasing.map(([name, v]) => (
-              <div key={name}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600 }}>{name}</span>
-                  <span style={{ color: "#64748B" }}>
-                    {v.count} เคส · ผ่าน {v.approved} / รอ {v.pending} / ไม่ผ่าน {v.rejected}
-                  </span>
-                </div>
-                <div style={{ height: 7, background: "#F1F5F9", borderRadius: 999 }}>
-                  <div style={{ width: `${(v.count / maxLeasing) * 100}%`, height: "100%", background: C_SEND, borderRadius: 999 }} />
-                </div>
-              </div>
-            ))}
-            {!leasing.length && <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ยังไม่มีข้อมูล</div>}
-            {leasing.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginTop: 3, paddingTop: 10, borderTop: "1px solid #E2E8F0", fontWeight: 700 }}>
-                <span>ยอดรวม</span>
-                <span style={{ color: "#334155" }}>
-                  {nf(leasingSum.count)} เคส · ผ่าน {nf(leasingSum.approved)} / รอ {nf(leasingSum.pending)} / ไม่ผ่าน {nf(leasingSum.rejected)}
-                </span>
-              </div>
-            )}
-          </div>
-        </Panel>
-
-        <Panel title="คนส่งงาน" note="ทีมการตลาด — จำนวนเคสและผลอนุมัติ">
-          <table className="dtable" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ textAlign: "left", color: "#64748B" }}>
-                {["ชื่อ", "ส่ง", "อนุมัติ", "รอผล", "ไม่ผ่าน"].map(h => (
-                  <th key={h} style={{ padding: "8px 10px", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map(([name, v]) => (
-                <tr key={name}>
-                  <td style={{ padding: "8px 10px", fontWeight: 600 }}>{name}</td>
-                  <td style={{ padding: "8px 10px" }}>{v.count}</td>
-                  <td style={{ padding: "8px 10px", color: "#059669" }}>{v.approved}</td>
-                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{v.pending}</td>
-                  <td style={{ padding: "8px 10px", color: "#94A3B8" }}>{v.rejected}</td>
-                </tr>
-              ))}
-              {!agents.length && <tr><td colSpan={5} style={{ padding: "8px 10px", color: "#94A3B8" }}>ยังไม่มีข้อมูล</td></tr>}
-            </tbody>
-            {agents.length > 0 && (
-              <tfoot>
-                <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0" }}>
-                  <td style={{ padding: "8px 10px" }}>ยอดรวม</td>
-                  <td style={{ padding: "8px 10px" }}>{nf(agentSum.count)}</td>
-                  <td style={{ padding: "8px 10px", color: "#059669" }}>{nf(agentSum.approved)}</td>
-                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{nf(agentSum.pending)}</td>
-                  <td style={{ padding: "8px 10px", color: "#64748B" }}>{nf(agentSum.rejected)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </Panel>
+      {/* ลิงก์ไปหน้างานเซล (แยกหน้าแล้ว) */}
+      <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+        ผลการส่งงานรายลีสซิ่ง · คนส่งงาน · เหตุผลไม่อนุมัติ ย้ายไปที่หน้า{" "}
+        <a href="/sales" style={{ color: "#2563EB", fontWeight: 600, textDecoration: "none" }}>งานเซล · ส่งงาน</a>
       </div>
-
-      {/* เหตุผลที่ไม่อนุมัติ — report งานภายใน (ตามเดือนที่เลือกด้านบน) */}
-      <Panel
-        title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
-        note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
-      >
-        {reasons.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {reasons.map(([name, n]) => (
-              <div key={name}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600 }}>{name}</span>
-                  <span style={{ color: "#64748B" }}>
-                    {nf(n)} เคส · {reasonTotal ? Math.round((n / reasonTotal) * 100) : 0}%
-                  </span>
-                </div>
-                <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999 }}>
-                  <div style={{ width: `${(n / maxReason) * 100}%`, height: "100%", background: "#DC2626", borderRadius: 999 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
-        )}
-      </Panel>
     </Shell>
   );
 }

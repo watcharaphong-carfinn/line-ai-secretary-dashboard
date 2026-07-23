@@ -10,7 +10,7 @@ export const useAccess = () => useContext(AccessCtx);
 
 // route ที่ไม่ต้องคุมสิทธิ์รายหัวข้อ (เข้าได้ทุกคนที่ login)
 const OPEN_ROUTES = ["/no-access", "/settings-profile"];
-const sectionHref: Record<Section, string> = { central: "/", marketing: "/marketing", ads: "/ads/report", admin: "/bot" };
+const sectionHref: Record<Section, string> = { central: "/", marketing: "/marketing", sales: "/sales", ads: "/ads/report", admin: "/bot" };
 
 export default function AccessProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AccessUser | null>(null);

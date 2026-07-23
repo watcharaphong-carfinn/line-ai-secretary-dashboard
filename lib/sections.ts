@@ -1,10 +1,11 @@
 // RBAC — ส่วนบริสุทธิ์ (ไม่มี server-only import) ใช้ได้ทั้ง client + server
-export const SECTIONS = ["central", "marketing", "ads", "admin"] as const;
+export const SECTIONS = ["central", "marketing", "sales", "ads", "admin"] as const;
 export type Section = typeof SECTIONS[number];
 
 export const SECTION_LABELS: Record<Section, string> = {
   central: "งานส่วนกลาง (ยอดปิด)",
   marketing: "การตลาด · Lead",
+  sales: "งานเซล · ส่งงาน",
   ads: "โฆษณา",
   admin: "ผู้ดูแลระบบ",
 };
@@ -28,6 +29,7 @@ export function normalizePerms(p: Partial<Record<Section, Partial<Perm>>> | unde
 // route → หัวข้อ
 export function routeSection(pathname: string): Section {
   if (pathname.startsWith("/marketing")) return "marketing";
+  if (pathname.startsWith("/sales")) return "sales";
   if (pathname.startsWith("/ads")) return "ads";
   if (["/bot", "/users", "/audit", "/settings", "/system"].some(p => pathname === p || pathname.startsWith(p + "/"))) return "admin";
   return "central"; // /, /customers, /followup, /analytics

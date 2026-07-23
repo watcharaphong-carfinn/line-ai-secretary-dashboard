@@ -1,0 +1,226 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Send, Users, XCircle } from "lucide-react";
+import Topbar from "@/components/Topbar";
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Topbar breadcrumb={["หน้าหลัก", "งานเซล · ส่งงาน"]} title="งานเซล · ติดตามการส่งงาน" />
+      <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {children}
+      </div>
+    </>
+  );
+}
+
+const C_SEND = "#7C3AED";
+const TH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const nf = (v: number) => Math.round(v || 0).toLocaleString("th-TH");
+
+interface Bucket { count: number; approved: number; rejected: number; pending: number }
+interface Agg {
+  totalLeads: number;
+  byAgent: Record<string, Bucket>; byLeasing: Record<string, Bucket>;
+  byAgentMonth?: Record<string, Record<string, Bucket>>;
+  byLeasingMonth?: Record<string, Record<string, Bucket>>;
+  byReason?: Record<string, number>;
+  byReasonMonth?: Record<string, Record<string, number>>;
+}
+interface ApiRes { agg: Agg | null; leadCount: number; updatedAt: string | null; note?: string }
+
+function Card({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 25, fontWeight: 800, letterSpacing: "-0.02em", color: "#0F172A" }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function Panel({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: 20, boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
+      <div style={{ fontSize: 14.5, fontWeight: 700, marginBottom: note ? 2 : 14 }}>{title}</div>
+      {note && <div style={{ fontSize: 11.5, color: "#94A3B8", marginBottom: 14 }}>{note}</div>}
+      {children}
+    </div>
+  );
+}
+
+export default function SalesPage() {
+  const [data, setData] = useState<ApiRes | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [breakMonth, setBreakMonth] = useState("");   // "" = รวมทุกเดือน
+
+  useEffect(() => {
+    fetch("/api/sales")
+      .then(r => r.json())
+      .then(d => { if (d.error) setErr(d.error); else setData(d); })
+      .catch(e => setErr(String(e)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Shell><div style={{ fontSize: 13, color: "#94A3B8" }}>กำลังโหลดข้อมูลงานเซล…</div></Shell>;
+  if (err) return <Shell><div style={{ padding: 16, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, color: "#B91C1C", fontSize: 13 }}>โหลดข้อมูลไม่สำเร็จ: {err}</div></Shell>;
+
+  const agg = data?.agg || null;
+  if (!agg) {
+    return (
+      <Shell>
+        <div style={{ padding: 20, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, fontSize: 13.5, color: "#92400E" }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>ยังไม่มีข้อมูลงานเซลในระบบ</div>
+          {data?.note || 'พิมพ์ "force sync" ในไลน์เพื่อดึงข้อมูลรอบแรก แล้วรีเฟรชหน้านี้'}
+        </div>
+      </Shell>
+    );
+  }
+
+  const rank = (obj: Record<string, Bucket> | undefined) =>
+    Object.entries(obj || {}).sort((a, b) => b[1].count - a[1].count);
+  const breakMonths = Array.from(new Set([
+    ...Object.keys(agg.byLeasingMonth || {}),
+    ...Object.keys(agg.byAgentMonth || {}),
+    ...Object.keys(agg.byReasonMonth || {}),
+  ])).sort((a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return by - ay || bm - am; });
+  const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
+
+  const leasing = rank(breakMonth ? agg.byLeasingMonth?.[breakMonth] : agg.byLeasing);
+  const agents = rank(breakMonth ? agg.byAgentMonth?.[breakMonth] : agg.byAgent);
+  const maxLeasing = leasing[0]?.[1].count || 1;
+  const sumBuckets = (rows: [string, Bucket][]) => rows.reduce(
+    (a, [, v]) => ({ count: a.count + v.count, approved: a.approved + v.approved, pending: a.pending + v.pending, rejected: a.rejected + v.rejected }),
+    { count: 0, approved: 0, pending: 0, rejected: 0 });
+  const leasingSum = sumBuckets(leasing);
+  const agentSum = sumBuckets(agents);
+
+  // เหตุผลที่ไม่อนุมัติ — ตามเดือนที่เลือก (เรียงมาก→น้อย)
+  const reasonSrc = breakMonth ? (agg.byReasonMonth?.[breakMonth] || {}) : (agg.byReason || {});
+  const reasons = Object.entries(reasonSrc).sort((a, b) => b[1] - a[1]);
+  const reasonTotal = reasons.reduce((s, [, n]) => s + n, 0);
+  const maxReason = reasons[0]?.[1] || 1;
+
+  return (
+    <Shell>
+      <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: -4 }}>
+        การส่งงานของทีมเซลให้ลีสซิ่ง — ผลอนุมัติ/รอ/ไม่ผ่าน + เหตุผลที่ไม่อนุมัติ (คนละชุดกับยอดปิดส่วนกลาง)
+        {data?.updatedAt && ` · อัปเดต ${new Date(data.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}`}
+      </div>
+
+      {/* KPI */}
+      <div className="grid-kpi" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+        <Card icon={<Send size={17} color={C_SEND} />} label="เคสส่งงาน" value={nf(agg.totalLeads)} sub={`ส่งลีสซิ่งรวม ${nf(leasingSum.count)} ครั้ง`} />
+        <Card icon={<Users size={17} color="#2563EB" />} label="อนุมัติ" value={nf(agentSum.approved)} sub="ในชีตงานเซล" />
+        <Card icon={<Users size={17} color="#D97706" />} label="รออนุมัติ" value={nf(agentSum.pending)} />
+        <Card icon={<XCircle size={17} color="#DC2626" />} label="ไม่อนุมัติ" value={nf(agentSum.rejected)} sub="ดูเหตุผลด้านล่าง" />
+      </div>
+
+      {/* ตัวเลือกเดือน (ใช้ร่วมทั้งลีสซิ่ง/คนส่งงาน/เหตุผล) */}
+      {breakMonths.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>เลือกดูรายเดือน (ลีสซิ่ง / คนส่งงาน / เหตุผลไม่อนุมัติ):</span>
+          <select value={breakMonth} onChange={e => setBreakMonth(e.target.value)}
+            style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "7px 12px", fontSize: 13, background: "#fff", cursor: "pointer" }}>
+            <option value="">รวมทุกเดือน</option>
+            {breakMonths.map(mk => <option key={mk} value={mk}>{monthLabel(mk)}</option>)}
+          </select>
+        </div>
+      )}
+
+      <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <Panel title="ส่งลีสซิ่งแต่ละเจ้า" note="จำนวนเคสที่ส่ง (1 เคสส่งหลายเจ้า = นับทุกเจ้า)">
+          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+            {leasing.map(([name, v]) => (
+              <div key={name}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{name}</span>
+                  <span style={{ color: "#64748B" }}>
+                    {v.count} เคส · ผ่าน {v.approved} / รอ {v.pending} / ไม่ผ่าน {v.rejected}
+                  </span>
+                </div>
+                <div style={{ height: 7, background: "#F1F5F9", borderRadius: 999 }}>
+                  <div style={{ width: `${(v.count / maxLeasing) * 100}%`, height: "100%", background: C_SEND, borderRadius: 999 }} />
+                </div>
+              </div>
+            ))}
+            {!leasing.length && <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ยังไม่มีข้อมูล</div>}
+            {leasing.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginTop: 3, paddingTop: 10, borderTop: "1px solid #E2E8F0", fontWeight: 700 }}>
+                <span>ยอดรวม</span>
+                <span style={{ color: "#334155" }}>
+                  {nf(leasingSum.count)} เคส · ผ่าน {nf(leasingSum.approved)} / รอ {nf(leasingSum.pending)} / ไม่ผ่าน {nf(leasingSum.rejected)}
+                </span>
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel title="คนส่งงาน" note="ทีมเซล — จำนวนเคสและผลอนุมัติ">
+          <table className="dtable" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "#64748B" }}>
+                {["ชื่อ", "ส่ง", "อนุมัติ", "รอผล", "ไม่ผ่าน"].map(h => (
+                  <th key={h} style={{ padding: "8px 10px", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {agents.map(([name, v]) => (
+                <tr key={name}>
+                  <td style={{ padding: "8px 10px", fontWeight: 600 }}>{name}</td>
+                  <td style={{ padding: "8px 10px" }}>{v.count}</td>
+                  <td style={{ padding: "8px 10px", color: "#059669" }}>{v.approved}</td>
+                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{v.pending}</td>
+                  <td style={{ padding: "8px 10px", color: "#94A3B8" }}>{v.rejected}</td>
+                </tr>
+              ))}
+              {!agents.length && <tr><td colSpan={5} style={{ padding: "8px 10px", color: "#94A3B8" }}>ยังไม่มีข้อมูล</td></tr>}
+            </tbody>
+            {agents.length > 0 && (
+              <tfoot>
+                <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0" }}>
+                  <td style={{ padding: "8px 10px" }}>ยอดรวม</td>
+                  <td style={{ padding: "8px 10px" }}>{nf(agentSum.count)}</td>
+                  <td style={{ padding: "8px 10px", color: "#059669" }}>{nf(agentSum.approved)}</td>
+                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{nf(agentSum.pending)}</td>
+                  <td style={{ padding: "8px 10px", color: "#64748B" }}>{nf(agentSum.rejected)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </Panel>
+      </div>
+
+      {/* เหตุผลที่ไม่อนุมัติ (ตามเดือนที่เลือก) */}
+      <Panel
+        title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
+        note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
+      >
+        {reasons.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {reasons.map(([name, n]) => (
+              <div key={name}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{name}</span>
+                  <span style={{ color: "#64748B" }}>
+                    {nf(n)} เคส · {reasonTotal ? Math.round((n / reasonTotal) * 100) : 0}%
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999 }}>
+                  <div style={{ width: `${(n / maxReason) * 100}%`, height: "100%", background: "#DC2626", borderRadius: 999 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
+        )}
+      </Panel>
+    </Shell>
+  );
+}
