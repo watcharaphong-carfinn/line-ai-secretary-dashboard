@@ -65,6 +65,7 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [breakMonth, setBreakMonth] = useState("");   // "" = รวมทุกเดือน
+  const [donutHover, setDonutHover] = useState(false); // hover โดนัท → ซ่อนเลขกลางกัน tooltip ทับ
 
   useEffect(() => {
     fetch("/api/sales")
@@ -191,7 +192,8 @@ export default function SalesPage() {
           {reasonData.length ? (
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               {/* donut */}
-              <div style={{ position: "relative", width: 190, height: 190, flexShrink: 0 }}>
+              <div onMouseEnter={() => setDonutHover(true)} onMouseLeave={() => setDonutHover(false)}
+                style={{ position: "relative", width: 190, height: 190, flexShrink: 0 }}>
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie data={reasonData} dataKey="value" nameKey="name" cx="50%" cy="50%"
@@ -204,7 +206,7 @@ export default function SalesPage() {
                       formatter={(v, n) => { const num = Number(v); return [`${nf(num)} เคส · ${reasonTotal ? Math.round((num / reasonTotal) * 100) : 0}%`, String(n)]; }} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none", opacity: donutHover ? 0 : 1, transition: "opacity 0.12s" }}>
                   <div style={{ fontSize: 24, fontWeight: 800, color: "#0F172A", lineHeight: 1 }}>{nf(reasonTotal)}</div>
                   <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>เคสไม่ผ่าน</div>
                 </div>
