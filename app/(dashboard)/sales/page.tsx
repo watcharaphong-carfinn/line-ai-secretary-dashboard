@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Send, Users, XCircle, ListChecks } from "lucide-react";
 import Link from "next/link";
@@ -59,6 +60,7 @@ function Panel({ title, note, children }: { title: string; note?: string; childr
 }
 
 export default function SalesPage() {
+  const router = useRouter();
   const [data, setData] = useState<ApiRes | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -114,6 +116,14 @@ export default function SalesPage() {
     name, value, color: name.startsWith("อื่นๆ") ? GREY : PALETTE[ci++ % PALETTE.length],
   }));
 
+  // คลิกกลุ่ม → ไปหน้ารายการส่งเคส กรองกลุ่มนั้น (พร้อมเดือนที่เลือก)
+  const goCase = (params: Record<string, string>) => {
+    const sp = new URLSearchParams();
+    if (breakMonth) sp.set("month", breakMonth);
+    for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
+    router.push(`/sales/cases?${sp.toString()}`);
+  };
+
   return (
     <Shell>
       <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: -4, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -145,10 +155,11 @@ export default function SalesPage() {
       )}
 
       <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-        <Panel title="ส่งลีสซิ่งแต่ละเจ้า" note="จำนวนเคสที่ส่ง (1 เคสส่งหลายเจ้า = นับทุกเจ้า)">
+        <Panel title="ส่งลีสซิ่งแต่ละเจ้า" note="จำนวนเคสที่ส่ง (1 เคสส่งหลายเจ้า = นับทุกเจ้า) · กดเพื่อดูรายเคส">
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
             {leasing.map(([name, v]) => (
-              <div key={name}>
+              <div key={name} onClick={() => goCase({ leasing: name })} title={`ดูรายเคสที่ส่ง ${name}`}
+                style={{ cursor: "pointer" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
                   <span style={{ fontWeight: 600 }}>{name}</span>
                   <span style={{ color: "#64748B" }}>
@@ -175,7 +186,7 @@ export default function SalesPage() {
         {/* เหตุผลที่ไม่อนุมัติ (donut) — อยู่ขวาคู่กับส่งลีสซิ่ง */}
         <Panel
           title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
-          note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
+          note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม · กดดูรายเคส`}
         >
           {reasonData.length ? (
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
@@ -184,7 +195,8 @@ export default function SalesPage() {
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie data={reasonData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                      innerRadius={54} outerRadius={88} paddingAngle={1.5} stroke="#fff" strokeWidth={2}>
+                      innerRadius={54} outerRadius={88} paddingAngle={1.5} stroke="#fff" strokeWidth={2}
+                      onClick={(d: { name?: string }) => d?.name && goCase({ reason: d.name })} style={{ cursor: "pointer" }}>
                       {reasonData.map((d) => <Cell key={d.name} fill={d.color} />)}
                     </Pie>
                     <Tooltip
@@ -200,9 +212,10 @@ export default function SalesPage() {
               {/* legend */}
               <div style={{ flex: "1 1 200px", minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>
                 {reasonData.map((d) => (
-                  <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                  <div key={d.name} onClick={() => goCase({ reason: d.name })} title={`ดูรายเคส: ${d.name}`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, cursor: "pointer" }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: d.color, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.name}>{d.name}</span>
+                    <span style={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
                     <span style={{ color: "#64748B", whiteSpace: "nowrap" }}>{nf(d.value)} · {reasonTotal ? Math.round((d.value / reasonTotal) * 100) : 0}%</span>
                   </div>
                 ))}
@@ -215,7 +228,7 @@ export default function SalesPage() {
       </div>
 
       {/* คนส่งงาน — เต็มความกว้าง ด้านล่าง */}
-      <Panel title="คนส่งงาน" note="ทีมเซล — จำนวนเคสและผลอนุมัติ">
+      <Panel title="คนส่งงาน" note="ทีมเซล — จำนวนเคสและผลอนุมัติ · กดแถวเพื่อดูรายเคส">
         <table className="dtable" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
           <thead>
             <tr style={{ textAlign: "left", color: "#64748B" }}>
@@ -226,7 +239,7 @@ export default function SalesPage() {
           </thead>
           <tbody>
             {agents.map(([name, v]) => (
-              <tr key={name}>
+              <tr key={name} onClick={() => goCase({ agent: name })} title={`ดูรายเคสของ ${name}`} style={{ cursor: "pointer" }}>
                 <td style={{ padding: "8px 10px", fontWeight: 600 }}>{name}</td>
                 <td style={{ padding: "8px 10px" }}>{v.count}</td>
                 <td style={{ padding: "8px 10px", color: "#059669" }}>{v.approved}</td>

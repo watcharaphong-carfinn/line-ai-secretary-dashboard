@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Hash, X, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle } from "lucide-react";
 import Topbar from "@/components/Topbar";
+import { rejectReasonOf } from "@/lib/rejectReason";
 
 const TH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
@@ -53,8 +54,20 @@ export default function SalesCasesPage() {
   const [q, setQ] = useState("");
   const [fStatus, setFStatus] = useState("");
   const [fLeasing, setFLeasing] = useState("");
+  const [fAgent, setFAgent] = useState("");
+  const [fReason, setFReason] = useState("");   // เหตุผลไม่อนุมัติ (classify จาก note ฝั่ง client)
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "update", dir: -1 });
   const [sel, setSel] = useState<Lead | null>(null);
+
+  // มาจากการคลิกกลุ่มในหน้าสรุป (?leasing= / ?agent= / ?reason= / ?status= / ?month=)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const mth = p.get("month"); if (mth) setMonth(mth);
+    const ls = p.get("leasing"); if (ls) setFLeasing(ls);
+    const ag = p.get("agent"); if (ag) setFAgent(ag);
+    const rs = p.get("reason"); if (rs) setFReason(rs);
+    const st = p.get("status"); if (st) setFStatus(st);
+  }, []);
 
   // รายชื่อเดือน — จาก /api/sales (agg month keys)
   useEffect(() => {
@@ -75,7 +88,7 @@ export default function SalesCasesPage() {
   useEffect(() => {
     if (!ready || !monthKeys.length) return;
     const months = month ? [month] : monthKeys;
-    setLoading(true); setErr(null); setQ(""); setFStatus(""); setFLeasing("");
+    setLoading(true); setErr(null);
     fetch(`/api/sales/leads?months=${months.join(",")}`).then(r => r.json())
       .then(j => { if (j.error) setErr(j.error); setCases(Array.isArray(j.leads) ? j.leads : []); })
       .catch(e => setErr(String(e))).finally(() => setLoading(false));
@@ -83,18 +96,25 @@ export default function SalesCasesPage() {
 
   const statusOpts = useMemo(() => uniq(cases, l => l.statusGroup), [cases]);
   const leasingOpts = useMemo(() => uniq(cases, l => leasingOf(l)), [cases]);
+  const agentOpts = useMemo(() => uniq(cases, l => l.agent), [cases]);
+  // เหตุผล: จัดหมวดเฉพาะเคสไม่ผ่าน แล้วเอาเฉพาะหมวดที่มีจริง
+  const reasonOpts = useMemo(() =>
+    [...new Set(cases.filter(l => l.statusGroup === "ไม่ผ่าน").map(l => rejectReasonOf(l.note, l.status)))]
+      .sort((a, b) => a.localeCompare(b, "th")), [cases]);
 
   const result = useMemo(() => {
     const s = q.trim().toLowerCase();
     const out = cases.filter(l =>
       (!s || [l.name, l.phone, l.agent, leasingOf(l), l.product].some(x => String(x || "").toLowerCase().includes(s))) &&
       (!fStatus || l.statusGroup === fStatus) &&
-      (!fLeasing || leasingOf(l) === fLeasing)
+      (!fLeasing || leasingOf(l) === fLeasing) &&
+      (!fAgent || l.agent === fAgent) &&
+      (!fReason || (l.statusGroup === "ไม่ผ่าน" && rejectReasonOf(l.note, l.status) === fReason))
     );
     const col = COLS.find(c => c.key === sort.key)!;
     out.sort((a, b) => col.get(a).localeCompare(col.get(b), "th") * sort.dir);
     return out;
-  }, [cases, q, fStatus, fLeasing, sort]);
+  }, [cases, q, fStatus, fLeasing, fAgent, fReason, sort]);
 
   const clickSort = (key: SortKey) => setSort(s => s.key === key ? { key, dir: (s.dir === 1 ? -1 : 1) } : { key, dir: 1 });
   const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
@@ -137,6 +157,14 @@ export default function SalesCasesPage() {
           </div>
           <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={selStyle}><option value="">ทุกสถานะ</option>{statusOpts.map(t => <option key={t} value={t}>{t}</option>)}</select>
           <select value={fLeasing} onChange={e => setFLeasing(e.target.value)} style={selStyle}><option value="">ทุกลีสซิ่ง</option>{leasingOpts.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <select value={fAgent} onChange={e => setFAgent(e.target.value)} style={selStyle}><option value="">ทุกคนส่งงาน</option>{agentOpts.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <select value={fReason} onChange={e => setFReason(e.target.value)} style={selStyle}><option value="">ทุกเหตุผล</option>{reasonOpts.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          {(fStatus || fLeasing || fAgent || fReason || q) && (
+            <button onClick={() => { setQ(""); setFStatus(""); setFLeasing(""); setFAgent(""); setFReason(""); }}
+              style={{ border: "1px solid #E2E8F0", background: "#fff", color: "#64748B", borderRadius: 9, padding: "8px 12px", fontSize: 13, cursor: "pointer" }}>
+              ล้างตัวกรอง
+            </button>
+          )}
           <button onClick={exportCsv} disabled={!result.length}
             style={{ marginLeft: "auto", border: "1px solid #2563EB", background: result.length ? "#2563EB" : "#93C5FD", color: "#fff", borderRadius: 9, padding: "8px 16px", fontSize: 13.5, fontWeight: 700, cursor: result.length ? "pointer" : "default" }}>
             Export CSV ({result.length})
