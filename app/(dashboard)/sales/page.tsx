@@ -172,82 +172,82 @@ export default function SalesPage() {
           </div>
         </Panel>
 
-        <Panel title="คนส่งงาน" note="ทีมเซล — จำนวนเคสและผลอนุมัติ">
-          <table className="dtable" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ textAlign: "left", color: "#64748B" }}>
-                {["ชื่อ", "ส่ง", "อนุมัติ", "รอผล", "ไม่ผ่าน"].map(h => (
-                  <th key={h} style={{ padding: "8px 10px", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>{h}</th>
+        {/* เหตุผลที่ไม่อนุมัติ (donut) — อยู่ขวาคู่กับส่งลีสซิ่ง */}
+        <Panel
+          title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
+          note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
+        >
+          {reasonData.length ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              {/* donut */}
+              <div style={{ position: "relative", width: 190, height: 190, flexShrink: 0 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={reasonData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                      innerRadius={54} outerRadius={88} paddingAngle={1.5} stroke="#fff" strokeWidth={2}>
+                      {reasonData.map((d) => <Cell key={d.name} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12.5, boxShadow: "0 4px 14px rgba(15,23,42,.08)" }}
+                      formatter={(v, n) => { const num = Number(v); return [`${nf(num)} เคส · ${reasonTotal ? Math.round((num / reasonTotal) * 100) : 0}%`, String(n)]; }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#0F172A", lineHeight: 1 }}>{nf(reasonTotal)}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>เคสไม่ผ่าน</div>
+                </div>
+              </div>
+              {/* legend */}
+              <div style={{ flex: "1 1 200px", minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>
+                {reasonData.map((d) => (
+                  <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: d.color, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.name}>{d.name}</span>
+                    <span style={{ color: "#64748B", whiteSpace: "nowrap" }}>{nf(d.value)} · {reasonTotal ? Math.round((d.value / reasonTotal) * 100) : 0}%</span>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map(([name, v]) => (
-                <tr key={name}>
-                  <td style={{ padding: "8px 10px", fontWeight: 600 }}>{name}</td>
-                  <td style={{ padding: "8px 10px" }}>{v.count}</td>
-                  <td style={{ padding: "8px 10px", color: "#059669" }}>{v.approved}</td>
-                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{v.pending}</td>
-                  <td style={{ padding: "8px 10px", color: "#94A3B8" }}>{v.rejected}</td>
-                </tr>
-              ))}
-              {!agents.length && <tr><td colSpan={5} style={{ padding: "8px 10px", color: "#94A3B8" }}>ยังไม่มีข้อมูล</td></tr>}
-            </tbody>
-            {agents.length > 0 && (
-              <tfoot>
-                <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0" }}>
-                  <td style={{ padding: "8px 10px" }}>ยอดรวม</td>
-                  <td style={{ padding: "8px 10px" }}>{nf(agentSum.count)}</td>
-                  <td style={{ padding: "8px 10px", color: "#059669" }}>{nf(agentSum.approved)}</td>
-                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{nf(agentSum.pending)}</td>
-                  <td style={{ padding: "8px 10px", color: "#64748B" }}>{nf(agentSum.rejected)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
+          )}
         </Panel>
       </div>
 
-      {/* เหตุผลที่ไม่อนุมัติ */}
-      <Panel
-        title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
-        note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
-      >
-        {reasonData.length ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            {/* donut */}
-            <div style={{ position: "relative", width: 220, height: 220, flexShrink: 0 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={reasonData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={62} outerRadius={100} paddingAngle={1.5} stroke="#fff" strokeWidth={2}>
-                    {reasonData.map((d) => <Cell key={d.name} fill={d.color} />)}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12.5, boxShadow: "0 4px 14px rgba(15,23,42,.08)" }}
-                    formatter={(v, n) => { const num = Number(v); return [`${nf(num)} เคส · ${reasonTotal ? Math.round((num / reasonTotal) * 100) : 0}%`, String(n)]; }} />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* ตัวเลขกลางโดนัท */}
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                <div style={{ fontSize: 26, fontWeight: 800, color: "#0F172A", lineHeight: 1 }}>{nf(reasonTotal)}</div>
-                <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 2 }}>เคสไม่ผ่าน</div>
-              </div>
-            </div>
-            {/* legend */}
-            <div style={{ flex: "1 1 260px", minWidth: 240, display: "flex", flexDirection: "column", gap: 9 }}>
-              {reasonData.map((d) => (
-                <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5 }}>
-                  <span style={{ width: 11, height: 11, borderRadius: 3, background: d.color, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600, flex: 1 }}>{d.name}</span>
-                  <span style={{ color: "#64748B", whiteSpace: "nowrap" }}>{nf(d.value)} เคส · {reasonTotal ? Math.round((d.value / reasonTotal) * 100) : 0}%</span>
-                </div>
+      {/* คนส่งงาน — เต็มความกว้าง ด้านล่าง */}
+      <Panel title="คนส่งงาน" note="ทีมเซล — จำนวนเคสและผลอนุมัติ">
+        <table className="dtable" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+          <thead>
+            <tr style={{ textAlign: "left", color: "#64748B" }}>
+              {["ชื่อ", "ส่ง", "อนุมัติ", "รอผล", "ไม่ผ่าน"].map(h => (
+                <th key={h} style={{ padding: "8px 10px", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>{h}</th>
               ))}
-            </div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
-        )}
+            </tr>
+          </thead>
+          <tbody>
+            {agents.map(([name, v]) => (
+              <tr key={name}>
+                <td style={{ padding: "8px 10px", fontWeight: 600 }}>{name}</td>
+                <td style={{ padding: "8px 10px" }}>{v.count}</td>
+                <td style={{ padding: "8px 10px", color: "#059669" }}>{v.approved}</td>
+                <td style={{ padding: "8px 10px", color: "#D97706" }}>{v.pending}</td>
+                <td style={{ padding: "8px 10px", color: "#94A3B8" }}>{v.rejected}</td>
+              </tr>
+            ))}
+            {!agents.length && <tr><td colSpan={5} style={{ padding: "8px 10px", color: "#94A3B8" }}>ยังไม่มีข้อมูล</td></tr>}
+          </tbody>
+          {agents.length > 0 && (
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0" }}>
+                <td style={{ padding: "8px 10px" }}>ยอดรวม</td>
+                <td style={{ padding: "8px 10px" }}>{nf(agentSum.count)}</td>
+                <td style={{ padding: "8px 10px", color: "#059669" }}>{nf(agentSum.approved)}</td>
+                <td style={{ padding: "8px 10px", color: "#D97706" }}>{nf(agentSum.pending)}</td>
+                <td style={{ padding: "8px 10px", color: "#64748B" }}>{nf(agentSum.rejected)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
       </Panel>
     </Shell>
   );
