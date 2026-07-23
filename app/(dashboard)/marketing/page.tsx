@@ -46,6 +46,8 @@ interface Agg {
   byStatus: Record<string, Bucket>; byProduct: Record<string, Bucket>;
   byAgentMonth?: Record<string, Record<string, Bucket>>;
   byLeasingMonth?: Record<string, Record<string, Bucket>>;
+  byReason?: Record<string, number>;                       // เหตุผลไม่อนุมัติ (รวม)
+  byReasonMonth?: Record<string, Record<string, number>>;  // เหตุผลไม่อนุมัติ (รายเดือน)
 }
 interface ApiRes { funnel: FunnelRow[]; agg: Agg | null; leadCount: number; updatedAt: string | null; note?: string }
 
@@ -127,12 +129,21 @@ export default function MarketingPage() {
   const rank = (obj: Record<string, Bucket> | undefined) =>
     Object.entries(obj || {}).sort((a, b) => b[1].count - a[1].count);
   // เดือนที่มีข้อมูล (เรียงใหม่→เก่า) สำหรับ dropdown
-  const breakMonths = Object.keys(agg?.byLeasingMonth || agg?.byAgentMonth || {})
-    .sort((a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return by - ay || bm - am; });
+  const breakMonths = Array.from(new Set([
+    ...Object.keys(agg?.byLeasingMonth || {}),
+    ...Object.keys(agg?.byAgentMonth || {}),
+    ...Object.keys(agg?.byReasonMonth || {}),
+  ])).sort((a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return by - ay || bm - am; });
   const leasing = rank(breakMonth ? agg?.byLeasingMonth?.[breakMonth] : agg?.byLeasing);
   const agents = rank(breakMonth ? agg?.byAgentMonth?.[breakMonth] : agg?.byAgent);
   const maxLeasing = leasing[0]?.[1].count || 1;
   const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
+
+  // เหตุผลที่ไม่อนุมัติ — ตามเดือนที่เลือก (เรียงมาก→น้อย)
+  const reasonSrc = breakMonth ? (agg?.byReasonMonth?.[breakMonth] || {}) : (agg?.byReason || {});
+  const reasons = Object.entries(reasonSrc).sort((a, b) => b[1] - a[1]);
+  const reasonTotal = reasons.reduce((s, [, n]) => s + n, 0);
+  const maxReason = reasons[0]?.[1] || 1;
 
   return (
     <Shell>
@@ -223,7 +234,7 @@ export default function MarketingPage() {
       {/* ลีสซิ่ง + คนส่งงาน — เลือกดูรายเดือนได้ */}
       {breakMonths.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>ส่งลีสซิ่ง / คนส่งงาน:</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>เลือกดูรายเดือน (ลีสซิ่ง / คนส่งงาน / เหตุผลไม่อนุมัติ):</span>
           <select value={breakMonth} onChange={e => setBreakMonth(e.target.value)}
             style={{ border: "1px solid #E2E8F0", borderRadius: 9, padding: "7px 12px", fontSize: 13, background: "#fff", cursor: "pointer" }}>
             <option value="">รวมทุกเดือน</option>
@@ -275,6 +286,32 @@ export default function MarketingPage() {
           </table>
         </Panel>
       </div>
+
+      {/* เหตุผลที่ไม่อนุมัติ — report งานภายใน (ตามเดือนที่เลือกด้านบน) */}
+      <Panel
+        title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
+        note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
+      >
+        {reasons.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {reasons.map(([name, n]) => (
+              <div key={name}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{name}</span>
+                  <span style={{ color: "#64748B" }}>
+                    {nf(n)} เคส · {reasonTotal ? Math.round((n / reasonTotal) * 100) : 0}%
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999 }}>
+                  <div style={{ width: `${(n / maxReason) * 100}%`, height: "100%", background: "#DC2626", borderRadius: 999 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
+        )}
+      </Panel>
     </Shell>
   );
 }
