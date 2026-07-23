@@ -3,13 +3,13 @@
 // คลิก → เปิด popover ตารางไทล์โมดูล เลือกเข้าแต่ละโมดูลได้
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, UsersRound, CarFront, Wallet, Grip } from "lucide-react";
+import { LayoutDashboard, Users, Car, Wallet, Grip } from "lucide-react";
 import { MODULES, moduleHref, currentModuleId, type PortalModule } from "@/lib/modules";
 
 const ICONS = {
   dashboard: LayoutDashboard,
-  agent: UsersRound,
-  prices: CarFront,
+  agent: Users,
+  prices: Car,
   plus: Wallet,
 } as const;
 

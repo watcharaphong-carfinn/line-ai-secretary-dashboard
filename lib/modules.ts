@@ -44,7 +44,7 @@ export const MODULES: PortalModule[] = [
   {
     id: "prices",
     label: "ราคารถ",
-    sublabel: "ราคากลาง · มือสอง · ป้ายแดง",
+    sublabel: "ราคากลาง · มือสอง",
     externalUrl: "https://carprice.carfinn.com",
     icon: "prices",
     color: "#F59E0B",
