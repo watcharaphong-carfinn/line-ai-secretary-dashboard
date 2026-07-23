@@ -1,4 +1,4 @@
-import Link from "next/link";
+import InAppBrowserNotice from "@/components/InAppBrowserNotice";
 
 const ERRORS: Record<string, string> = {
   denied: "อีเมลนี้ไม่มีสิทธิ์เข้าระบบ — ติดต่อ Super Admin ให้เพิ่มสิทธิ์",
@@ -28,6 +28,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
         <div style={{ fontSize: 22, fontWeight: 700, color: "#0F172A", marginBottom: 6 }}>เข้าสู่ระบบ</div>
         <div style={{ fontSize: 13.5, color: "#64748B", marginBottom: 26 }}>เฉพาะผู้ใช้ที่ได้รับอนุญาต (Carfinn) เท่านั้น</div>
+
+        <InAppBrowserNotice />
 
         {errMsg && (
           <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "11px 14px", fontSize: 13, color: "#DC2626", marginBottom: 18 }}>
