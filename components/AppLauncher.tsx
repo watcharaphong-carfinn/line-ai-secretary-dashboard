@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, UsersRound, CarFront, Wallet, Grip } from "lucide-react";
-import { MODULES, moduleHref, isExternal, currentModuleId, type PortalModule } from "@/lib/modules";
+import { MODULES, moduleHref, currentModuleId, type PortalModule } from "@/lib/modules";
 
 const ICONS = {
   dashboard: LayoutDashboard,
@@ -77,7 +77,6 @@ export default function AppLauncher() {
 function Tile({ m, active, onNavigate }: { m: PortalModule; active: boolean; onNavigate: () => void }) {
   const Icon = ICONS[m.icon];
   const disabled = !!m.comingSoon;
-  const external = isExternal(m);
 
   const inner = (
     <>
@@ -113,7 +112,6 @@ function Tile({ m, active, onNavigate }: { m: PortalModule; active: boolean; onN
     <a
       href={moduleHref(m)}
       onClick={onNavigate}
-      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       style={box}
       className="app-launcher-tile"
     >
