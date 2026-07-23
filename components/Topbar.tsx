@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Search, ChevronRight, Menu, LogOut } from "lucide-react";
 import { useDrawer } from "./drawer-context";
+import AppLauncher from "./AppLauncher";
 
 interface TopbarProps {
   breadcrumb: string[];
@@ -63,6 +64,9 @@ export default function Topbar({ breadcrumb, title, synced = true }: TopbarProps
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        {/* App launcher (waffle 9 จุด) — สลับโมดูลแบบ Google */}
+        <AppLauncher />
+
         {/* Search (ซ่อนบนมือถือ) */}
         <div className="desktop-only" style={{
           display: "flex", alignItems: "center", gap: 9, width: 300,
