@@ -114,8 +114,9 @@ export default function MarketingPage() {
 
   const tot = funnel.reduce((a, f) => ({
     chats: a.chats + f.chats, leads: a.leads + f.leads, submitted: a.submitted + f.submitted,
+    approved: a.approved + f.approved, pending: a.pending + f.pending,
     adCost: a.adCost + f.adCost, revenue: a.revenue + f.revenue,
-  }), { chats: 0, leads: 0, submitted: 0, adCost: 0, revenue: 0 });
+  }), { chats: 0, leads: 0, submitted: 0, approved: 0, pending: 0, adCost: 0, revenue: 0 });
   const totProfit = tot.revenue - tot.adCost;
   const totRoas = tot.adCost > 0 ? (tot.revenue / tot.adCost).toFixed(2) : "-";
   const leadRate = tot.chats > 0 ? ((tot.leads / tot.chats) * 100).toFixed(1) : "-";
@@ -137,6 +138,12 @@ export default function MarketingPage() {
   const leasing = rank(breakMonth ? agg?.byLeasingMonth?.[breakMonth] : agg?.byLeasing);
   const agents = rank(breakMonth ? agg?.byAgentMonth?.[breakMonth] : agg?.byAgent);
   const maxLeasing = leasing[0]?.[1].count || 1;
+  // ยอดรวมท้ายตาราง (ตามช่วงเดือนที่เลือก)
+  const sumBuckets = (rows: [string, Bucket][]) => rows.reduce(
+    (a, [, v]) => ({ count: a.count + v.count, approved: a.approved + v.approved, pending: a.pending + v.pending, rejected: a.rejected + v.rejected }),
+    { count: 0, approved: 0, pending: 0, rejected: 0 });
+  const leasingSum = sumBuckets(leasing);
+  const agentSum = sumBuckets(agents);
   const monthLabel = (mk: string) => { const [y, m] = mk.split("-").map(Number); return `${TH[m]} ${y}`; };
 
   // เหตุผลที่ไม่อนุมัติ — ตามเดือนที่เลือก (เรียงมาก→น้อย)
@@ -227,6 +234,22 @@ export default function MarketingPage() {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0", background: "#F8FAFC" }}>
+                <td style={{ padding: "9px 10px", whiteSpace: "nowrap" }}>ยอดรวม</td>
+                <td style={{ padding: "9px 10px" }}>{nf(tot.chats)}</td>
+                <td style={{ padding: "9px 10px" }}>{nf(tot.leads)}</td>
+                <td style={{ padding: "9px 10px", color: "#94A3B8" }}>{tot.chats ? `${((tot.leads / tot.chats) * 100).toFixed(1)}%` : "-"}</td>
+                <td style={{ padding: "9px 10px" }}>{nf(tot.submitted)}</td>
+                <td style={{ padding: "9px 10px", color: "#94A3B8" }}>{tot.leads ? `${((tot.submitted / tot.leads) * 100).toFixed(1)}%` : "-"}</td>
+                <td style={{ padding: "9px 10px" }}>{nf(tot.approved)}</td>
+                <td style={{ padding: "9px 10px" }}>{nf(tot.pending)}</td>
+                <td style={{ padding: "9px 10px", whiteSpace: "nowrap" }}>{bt(tot.adCost)}</td>
+                <td style={{ padding: "9px 10px", whiteSpace: "nowrap" }}>{bt(tot.revenue)}</td>
+                <td style={{ padding: "9px 10px", whiteSpace: "nowrap", color: totProfit >= 0 ? "#059669" : "#DC2626" }}>{bt(totProfit)}</td>
+                <td style={{ padding: "9px 10px" }}>{totRoas}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </Panel>
@@ -259,6 +282,14 @@ export default function MarketingPage() {
               </div>
             ))}
             {!leasing.length && <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ยังไม่มีข้อมูล</div>}
+            {leasing.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginTop: 3, paddingTop: 10, borderTop: "1px solid #E2E8F0", fontWeight: 700 }}>
+                <span>ยอดรวม</span>
+                <span style={{ color: "#334155" }}>
+                  {nf(leasingSum.count)} เคส · ผ่าน {nf(leasingSum.approved)} / รอ {nf(leasingSum.pending)} / ไม่ผ่าน {nf(leasingSum.rejected)}
+                </span>
+              </div>
+            )}
           </div>
         </Panel>
 
@@ -283,6 +314,17 @@ export default function MarketingPage() {
               ))}
               {!agents.length && <tr><td colSpan={5} style={{ padding: "8px 10px", color: "#94A3B8" }}>ยังไม่มีข้อมูล</td></tr>}
             </tbody>
+            {agents.length > 0 && (
+              <tfoot>
+                <tr style={{ fontWeight: 700, borderTop: "2px solid #E2E8F0" }}>
+                  <td style={{ padding: "8px 10px" }}>ยอดรวม</td>
+                  <td style={{ padding: "8px 10px" }}>{nf(agentSum.count)}</td>
+                  <td style={{ padding: "8px 10px", color: "#059669" }}>{nf(agentSum.approved)}</td>
+                  <td style={{ padding: "8px 10px", color: "#D97706" }}>{nf(agentSum.pending)}</td>
+                  <td style={{ padding: "8px 10px", color: "#64748B" }}>{nf(agentSum.rejected)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </Panel>
       </div>
