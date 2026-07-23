@@ -1,14 +1,34 @@
 "use client";
 // ── แถบบนคงที่ของ shell (โมดูลฝังใน iframe ใต้แถบนี้) ───────────────────────────
 // แถบนี้อยู่ใน (embed)/layout → คงที่ตลอด สลับโมดูลแล้วไม่ reload/ขยับ
+// เป็นแถบเดียวของทั้งพอร์ทัล (แอปในกรอบซ่อนแถบตัวเองเมื่อถูกฝัง)
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import AppLauncher from "./AppLauncher";
 import { MODULES, currentModuleId } from "@/lib/modules";
+
+interface Me { email: string; name?: string }
 
 export default function EmbedTopbar() {
   const pathname = usePathname();
   const cur = currentModuleId(pathname);
   const mod = MODULES.find((m) => m.id === cur);
+
+  const [user, setUser] = useState<Me | null>(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => setUser(d.user)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const initial = ((user?.name || user?.email || "U").trim()[0] || "U").toUpperCase();
 
   return (
     <header
@@ -23,14 +43,36 @@ export default function EmbedTopbar() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/carfinn-mark.png" alt="CarFinn AI" style={{ width: 34, height: 34, borderRadius: 9, display: "block" }} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15.5, fontWeight: 800, color: "#0F172A", lineHeight: 1.1 }}>
-            {mod?.label ?? "CarFinn AI"}
-          </div>
+          <div style={{ fontSize: 15.5, fontWeight: 800, color: "#0F172A", lineHeight: 1.1 }}>{mod?.label ?? "CarFinn AI"}</div>
           <div style={{ fontSize: 11.5, color: "#94A3B8", lineHeight: 1.2 }}>{mod?.sublabel ?? ""}</div>
         </div>
       </div>
 
-      <AppLauncher />
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <AppLauncher />
+        <div ref={ref} style={{ position: "relative" }}>
+          <button onClick={() => setOpen((o) => !o)} aria-label="บัญชีผู้ใช้" title={user?.email || ""} style={{
+            width: 38, height: 38, borderRadius: "50%", background: "#2563EB",
+            color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>{initial}</button>
+          {open && (
+            <div style={{
+              position: "absolute", right: 0, top: 46, width: 230, zIndex: 60,
+              background: "#fff", border: "1px solid #E2E8F0", borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(15,23,42,.16)", overflow: "hidden",
+            }}>
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid #F1F5F9" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name || "ผู้ใช้"}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email || ""}</div>
+              </div>
+              <a href="/api/auth/logout" style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 16px", fontSize: 13.5, fontWeight: 600, color: "#DC2626", textDecoration: "none" }}>
+                <LogOut size={16} /> ออกจากระบบ
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
     </header>
   );
 }
