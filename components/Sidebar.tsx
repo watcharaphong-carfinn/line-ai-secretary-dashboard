@@ -3,14 +3,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio, ClipboardCheck,
-  Server, Settings, Users, ClipboardList, Network, X, Send,
+  Server, Settings, Users, ClipboardList, Network, X, Send, ListChecks,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 import { useAccess } from "./access-context";
 import { canView, type Section } from "@/lib/sections";
 
-// สีหัวข้อกลุ่มเมนู — สว่างพอให้อ่านชัดบนพื้นเข้ม (#0F172A)
-const LABEL_COLOR = "#94A3B8";
+// หัวข้อกลุ่มเมนู: โทนเย็นเข้ม + ตัวหนา uppercase + มีเส้นคั่นด้านบน
+// → ให้ต่างชัดจากรายการเมนู (ซึ่งสว่างกว่า) ไม่กลืนกัน
+const LABEL_COLOR = "#7B8AA0";
+const GROUP_DIVIDER = "1px solid rgba(148,163,184,0.14)";
+const labelStyle: React.CSSProperties = {
+  fontSize: 10.5, fontWeight: 800, letterSpacing: "0.16em", color: LABEL_COLOR,
+  textTransform: "uppercase",
+};
 
 // งานส่วนกลาง = ยอดปิด/ยอดขายจริงของทีมขาย (Google Sheets 3 ปี) — ภาพรวม+วิเคราะห์อยู่ในนี้เพราะเป็นข้อมูลยอดปิด
 const NAV_CENTRAL = [
@@ -22,7 +28,8 @@ const NAV_CENTRAL = [
 // งานภายใน = ทีมการตลาด/Lead + งานเซล (ไฟล์ "รายชื่อส่งงาน ภายใน") — แต่ละเมนูคุมสิทธิ์แยก section
 const NAV_INTERNAL: { href: string; label: string; icon: React.ElementType; section: Section }[] = [
   { href: "/marketing", label: "การตลาด · Lead", icon: Megaphone, section: "marketing" },
-  { href: "/sales", label: "งานเซล · ส่งงาน", icon: Send, section: "sales" },
+  { href: "/sales", label: "งานเซล · สรุป", icon: Send, section: "sales" },
+  { href: "/sales/cases", label: "รายการส่งเคส", icon: ListChecks, section: "sales" },
 ];
 // ดึงตัวเลขจริงจากแพลตฟอร์มโฆษณา — แยกจาก "การตลาด · Lead" (ที่ทีมกรอกเอง) จนกว่าจะลงตัวแล้วค่อยรวม
 //   รายงาน = ของที่ดูบ่อย วางไว้บน · บัญชีโฆษณา = หน้าตั้งค่า
@@ -51,7 +58,7 @@ function NavItem({ href, label, icon: Icon, active }: {
       style={{
         display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
         borderRadius: 9, textDecoration: "none", fontSize: 14, fontWeight: active ? 600 : 500,
-        color: active ? "#fff" : "#94A3B8",
+        color: active ? "#fff" : "#CBD5E1",
         background: active ? "#1E293B" : "transparent",
         position: "relative",
         transition: "background 0.15s, color 0.15s",
@@ -63,7 +70,7 @@ function NavItem({ href, label, icon: Icon, active }: {
           width: 3, borderRadius: 3, background: "#2563EB",
         }} />
       )}
-      <Icon size={19} color={active ? "#60A5FA" : "#94A3B8"} strokeWidth={2} />
+      <Icon size={19} color={active ? "#60A5FA" : "#8B97A8"} strokeWidth={2} />
       {label}
     </Link>
   );
@@ -74,10 +81,7 @@ function NavSection({ label, items, pathname }: {
 }) {
   return (
     <>
-      <div style={{
-        fontSize: 11, fontWeight: 700, letterSpacing: "0.13em", color: LABEL_COLOR,
-        textTransform: "uppercase", padding: "20px 10px 10px",
-      }}>
+      <div style={{ ...labelStyle, borderTop: GROUP_DIVIDER, margin: "16px 4px 0", padding: "16px 6px 9px" }}>
         {label}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -124,10 +128,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav style={{ flex: 1, padding: "18px 14px", overflowY: "auto" }}>
         {show("central") && (<>
-          <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: "0.13em", color: LABEL_COLOR,
-            textTransform: "uppercase", padding: "0 10px 10px",
-          }}>งานส่วนกลาง (ยอดขาย)</div>
+          <div style={{ ...labelStyle, padding: "0 6px 9px", margin: "0 4px" }}>งานส่วนกลาง (ยอดขาย)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {NAV_CENTRAL.map((item) => (
               <NavItem key={item.href} {...item} active={pathname === item.href} />
