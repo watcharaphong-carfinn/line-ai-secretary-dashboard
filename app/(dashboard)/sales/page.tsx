@@ -1,8 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Send, Users, XCircle, ListChecks } from "lucide-react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
+
+// ชุดสี categorical ผ่าน validator (worst CVD ΔE 8.6) — ชุดเดียวกับ StatusDonut
+const PALETTE = ["#2563EB", "#D97706", "#7C3AED", "#059669", "#DC2626", "#0891B2", "#DB2777"];
+const GREY = "#94A3B8";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -103,7 +108,11 @@ export default function SalesPage() {
   const reasonSrc = breakMonth ? (agg.byReasonMonth?.[breakMonth] || {}) : (agg.byReason || {});
   const reasons = Object.entries(reasonSrc).sort((a, b) => b[1] - a[1]);
   const reasonTotal = reasons.reduce((s, [, n]) => s + n, 0);
-  const maxReason = reasons[0]?.[1] || 1;
+  // สีต่อหมวด (อื่นๆ = เทา, ที่เหลือไล่ตาม palette)
+  let ci = 0;
+  const reasonData = reasons.map(([name, value]) => ({
+    name, value, color: name.startsWith("อื่นๆ") ? GREY : PALETTE[ci++ % PALETTE.length],
+  }));
 
   return (
     <Shell>
@@ -204,19 +213,37 @@ export default function SalesPage() {
         title={`เหตุผลที่ไม่อนุมัติ${breakMonth ? ` · ${monthLabel(breakMonth)}` : " · รวมทุกเดือน"}`}
         note={`เคสไม่ผ่านทั้งหมด ${nf(reasonTotal)} เคส — จัดหมวดจากหมายเหตุการติดตาม`}
       >
-        {reasons.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {reasons.map(([name, n]) => (
-              <div key={name}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600 }}>{name}</span>
-                  <span style={{ color: "#64748B" }}>{nf(n)} เคส · {reasonTotal ? Math.round((n / reasonTotal) * 100) : 0}%</span>
-                </div>
-                <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999 }}>
-                  <div style={{ width: `${(n / maxReason) * 100}%`, height: "100%", background: "#DC2626", borderRadius: 999 }} />
-                </div>
+        {reasonData.length ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+            {/* donut */}
+            <div style={{ position: "relative", width: 220, height: 220, flexShrink: 0 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={reasonData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    innerRadius={62} outerRadius={100} paddingAngle={1.5} stroke="#fff" strokeWidth={2}>
+                    {reasonData.map((d) => <Cell key={d.name} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 12.5, boxShadow: "0 4px 14px rgba(15,23,42,.08)" }}
+                    formatter={(v, n) => { const num = Number(v); return [`${nf(num)} เคส · ${reasonTotal ? Math.round((num / reasonTotal) * 100) : 0}%`, String(n)]; }} />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* ตัวเลขกลางโดนัท */}
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "#0F172A", lineHeight: 1 }}>{nf(reasonTotal)}</div>
+                <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 2 }}>เคสไม่ผ่าน</div>
               </div>
-            ))}
+            </div>
+            {/* legend */}
+            <div style={{ flex: "1 1 260px", minWidth: 240, display: "flex", flexDirection: "column", gap: 9 }}>
+              {reasonData.map((d) => (
+                <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5 }}>
+                  <span style={{ width: 11, height: 11, borderRadius: 3, background: d.color, flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600, flex: 1 }}>{d.name}</span>
+                  <span style={{ color: "#64748B", whiteSpace: "nowrap" }}>{nf(d.value)} เคส · {reasonTotal ? Math.round((d.value / reasonTotal) * 100) : 0}%</span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div style={{ fontSize: 12.5, color: "#94A3B8" }}>ไม่มีเคสไม่อนุมัติในช่วงที่เลือก 🎉</div>
