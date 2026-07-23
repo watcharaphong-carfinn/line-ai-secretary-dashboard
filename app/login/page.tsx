@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { cfg, verifySession, SESSION_COOKIE } from "@/lib/auth";
 import InAppBrowserNotice from "@/components/InAppBrowserNotice";
 
 const ERRORS: Record<string, string> = {
@@ -11,6 +14,8 @@ const ERRORS: Record<string, string> = {
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  // ล็อกอินอยู่แล้ว → เข้าหน้าแรกเลย ไม่ต้องเห็นฟอร์ม (กันวนลูป OAuth ซ้ำ)
+  if (verifySession((await cookies()).get(SESSION_COOKIE)?.value, cfg.authSecret)) redirect("/");
   const errMsg = error ? (ERRORS[error] || "เข้าสู่ระบบไม่สำเร็จ") : null;
 
   return (
