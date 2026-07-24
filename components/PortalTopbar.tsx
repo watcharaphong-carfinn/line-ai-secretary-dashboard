@@ -3,7 +3,7 @@
 // พาดเต็มความกว้างด้านบนสุดเสมอ (sidebar ของแต่ละโมดูลอยู่ใต้แถบนี้) → ทุกหน้าโครงเดียวกัน
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, LogOut, UserCog } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import AppLauncher from "./AppLauncher";
 import { MODULES, currentModuleId } from "@/lib/modules";
 
@@ -71,12 +71,6 @@ export default function PortalTopbar({ onMenu }: { onMenu?: () => void }) {
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name || "ผู้ใช้"}</div>
                 <div style={{ fontSize: 12, color: "#94A3B8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email || ""}</div>
               </div>
-              {/* จัดการผู้ใช้รวมที่เดียว — เข้าได้จากทุกโมดูล (เฉพาะผู้ดูแล) */}
-              {(user?.role === "super_admin" || user?.perms?.admin?.v) && (
-                <a href="/users" style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 16px", fontSize: 13.5, fontWeight: 600, color: "#334155", textDecoration: "none", borderBottom: "1px solid #F1F5F9" }}>
-                  <UserCog size={16} /> จัดการผู้ใช้และสิทธิ์
-                </a>
-              )}
               <a href="/api/auth/logout" style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 16px", fontSize: 13.5, fontWeight: 600, color: "#DC2626", textDecoration: "none" }}>
                 <LogOut size={16} /> ออกจากระบบ
               </a>

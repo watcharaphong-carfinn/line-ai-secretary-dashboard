@@ -6,7 +6,7 @@
 //   - ยังไม่ย้าย → ตั้ง href เป็น externalUrl (ลิงก์ออก subdomain เดิม, เปิดใช้ได้ทันที)
 //   - ย้ายแล้ว   → ตั้ง internalPath (route ภายใน portal นี้) แล้ว helper จะเลือก path ในทันที
 
-export type ModuleId = "dashboard" | "agent" | "prices" | "plus";
+export type ModuleId = "dashboard" | "agent" | "prices" | "plus" | "settings";
 
 export interface PortalModule {
   id: ModuleId;
@@ -17,9 +17,11 @@ export interface PortalModule {
   /** ลิงก์ subdomain เดิม — ใช้ระหว่างยังไม่ย้าย (Phase 1) */
   externalUrl?: string;
   /** ชื่อ icon ของ lucide-react (map ใน AppLauncher) */
-  icon: "dashboard" | "agent" | "prices" | "plus";
+  icon: "dashboard" | "agent" | "prices" | "plus" | "settings";
   /** สีประจำโมดูล (พื้นไอคอนในไทล์) */
   color: string;
+  /** โชว์เฉพาะผู้ดูแล (role super_admin หรือมีสิทธิ์หัวข้อ admin) */
+  adminOnly?: boolean;
   /** ยังไม่พร้อมใช้ (แสดงจาง+ ป้าย "เร็วๆ นี้") */
   comingSoon?: boolean;
 }
@@ -52,6 +54,15 @@ export const MODULES: PortalModule[] = [
     color: "#F59E0B",
   },
   {
+    id: "settings",
+    label: "ตั้งค่า",
+    sublabel: "จัดการระบบ",
+    internalPath: "/users",   // หน้าแรกของโมดูลนี้ = จัดการผู้ใช้งาน
+    icon: "settings",
+    color: "#64748B",
+    adminOnly: true,
+  },
+  {
     id: "plus",
     label: "Carfin Plus",
     sublabel: "Investment (แยกภายหลัง)",
@@ -71,6 +82,7 @@ export function moduleHref(m: PortalModule): string {
 export function currentModuleId(pathname: string): ModuleId {
   if (pathname.startsWith("/agent")) return "agent";
   if (pathname.startsWith("/prices")) return "prices";
+  if (pathname.startsWith("/users")) return "settings";
   return "dashboard";
 }
 

@@ -3,7 +3,7 @@
 // คลิก → เปิด popover ตารางไทล์โมดูล เลือกเข้าแต่ละโมดูลได้
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Car, Wallet, Grip } from "lucide-react";
+import { LayoutDashboard, Users, Car, Wallet, Settings, Grip } from "lucide-react";
 import { MODULES, moduleHref, currentModuleId, hasModule, type ModuleAccess, type PortalModule } from "@/lib/modules";
 
 const ICONS = {
@@ -11,23 +11,27 @@ const ICONS = {
   agent: Users,
   prices: Car,
   plus: Wallet,
+  settings: Settings,
 } as const;
 
 export default function AppLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [access, setAccess] = useState<{ role?: string; modules?: ModuleAccess }>({});
+  const [access, setAccess] = useState<{ role?: string; modules?: ModuleAccess; perms?: Record<string, { v?: boolean }> }>({});
   const ref = useRef<HTMLDivElement>(null);
   const current = currentModuleId(pathname);
 
   // สิทธิ์รายโมดูล (กำหนดรวมที่หน้า /users) → โชว์เฉพาะโมดูลที่เข้าได้
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json())
-      .then((d) => setAccess({ role: d.user?.role, modules: d.user?.modules }))
+      .then((d) => setAccess({ role: d.user?.role, modules: d.user?.modules, perms: d.user?.perms }))
       .catch(() => {});
   }, []);
 
-  const visible = MODULES.filter((m) => m.comingSoon || hasModule(access.modules, m.id, access.role));
+  const isAdmin = access.role === "super_admin" || !!access.perms?.admin?.v;
+  const visible = MODULES.filter((m) =>
+    m.adminOnly ? isAdmin : m.comingSoon || hasModule(access.modules, m.id, access.role),
+  );
 
   // ปิดเมื่อคลิกนอกกล่อง / กด Esc
   useEffect(() => {
