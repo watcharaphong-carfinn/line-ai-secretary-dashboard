@@ -20,9 +20,9 @@ export default function UsersPage() {
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [invited, setInvited] = useState<string | null>(null);
 
-  const DASH_URL = "https://line-ai-secretary-dashboard-560617243929.asia-southeast3.run.app";
+  const DASH_URL = "https://internal.carfinn.com";
   const inviteText = (em: string) =>
-    `คุณได้รับสิทธิ์เข้าใช้ CarFinn Dashboard แล้ว 🎉\n\nเข้าที่: ${DASH_URL}\nกด "Sign in with Google" แล้วเลือกอีเมล ${em}\n(ต้องเป็นอีเมล @carfinn.com เท่านั้น)`;
+    `คุณได้รับสิทธิ์เข้าใช้ CarFinn Portal แล้ว 🎉\n\nเข้าที่: ${DASH_URL}\nกด "Sign in with Google" แล้วเลือกอีเมล ${em}\n(ต้องเป็นอีเมล @carfinn.com เท่านั้น)`;
   const copyInvite = (em: string) => {
     navigator.clipboard?.writeText(inviteText(em));
     setMsg({ type: "ok", text: `คัดลอกข้อความเชิญของ ${em} แล้ว — เอาไปส่งทาง LINE/เมลได้เลย` });
@@ -217,7 +217,7 @@ export default function UsersPage() {
               <thead>
                 <tr style={{ color: "#94A3B8", textAlign: "left", fontSize: 11.5, background: "#F8FAFC" }}>
                   <th style={{ padding: "11px 22px", fontWeight: 700 }}>ผู้ใช้</th>
-                  <th style={{ padding: "11px 14px", fontWeight: 700 }}>สิทธิ์รายหัวข้อ</th>
+                  <th style={{ padding: "11px 14px", fontWeight: 700 }}>สิทธิ์ (หัวข้อ + โมดูล)</th>
                   {isSuper && <th style={{ padding: "11px 14px", fontWeight: 700, textAlign: "right" }}></th>}
                 </tr>
               </thead>
@@ -238,13 +238,25 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td style={{ padding: "13px 14px" }}>
-                        {isS ? <span style={{ fontSize: 12, color: "#7C3AED" }}>ทุกหัวข้อ</span> : (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {SECTIONS.filter(s => u.perms[s].v).map(s => {
-                              const acts = [u.perms[s].v && "ดู", u.perms[s].e && "แก้", u.perms[s].d && "ลบ"].filter(Boolean).join("/");
-                              return <span key={s} style={{ fontSize: 11.5, fontWeight: 600, color: "#334155", background: "#F1F5F9", padding: "3px 9px", borderRadius: 999 }}>{SECTION_LABELS[s].split(" ")[0]}: {acts}</span>;
-                            })}
-                            {!SECTIONS.some(s => u.perms[s].v) && <span style={{ fontSize: 12, color: "#94A3B8" }}>ยังไม่มีสิทธิ์</span>}
+                        {isS ? <span style={{ fontSize: 12, color: "#7C3AED" }}>ทุกหัวข้อ + ทุกโมดูล</span> : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {SECTIONS.filter(s => u.perms[s].v).map(s => {
+                                const acts = [u.perms[s].v && "ดู", u.perms[s].e && "แก้", u.perms[s].d && "ลบ"].filter(Boolean).join("/");
+                                return <span key={s} style={{ fontSize: 11.5, fontWeight: 600, color: "#334155", background: "#F1F5F9", padding: "3px 9px", borderRadius: 999 }}>{SECTION_LABELS[s].split(" ")[0]}: {acts}</span>;
+                              })}
+                              {!SECTIONS.some(s => u.perms[s].v) && <span style={{ fontSize: 12, color: "#94A3B8" }}>ยังไม่มีสิทธิ์หัวข้อ</span>}
+                            </div>
+                            {/* สิทธิ์เข้าโมดูลอื่น (Agent / ราคารถ) */}
+                            {MODULE_ROLES.some(m => u.modules?.[m.id]) && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {MODULE_ROLES.filter(m => u.modules?.[m.id]).map(m => {
+                                  const val = u.modules?.[m.id];
+                                  const roleLabel = m.roles.find(r => r.value === val)?.label || val;
+                                  return <span key={m.id} style={{ fontSize: 11.5, fontWeight: 600, color: "#1E40AF", background: "#EFF6FF", border: "1px solid #BFDBFE", padding: "3px 9px", borderRadius: 999 }}>{m.label.split(" ")[0]}: {roleLabel}</span>;
+                                })}
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
