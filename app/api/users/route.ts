@@ -1,4 +1,4 @@
-import { getSessionUser, gate, firestore, logAudit, normalizePerms, NO_PERMS, type Perms } from "@/lib/auth";
+import { getSessionUser, gate, firestore, logAudit, normalizePerms, NO_PERMS, SECTIONS, type Perms } from "@/lib/auth";
 import { normalizeModules, type ModuleAccess } from "@/lib/modules";
 import { sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
@@ -47,6 +47,8 @@ export async function GET() {
         let modules: ModuleAccess;
         try { modules = normalizeModules(f.modules?.stringValue ? JSON.parse(f.modules.stringValue) : undefined); }
         catch { modules = {}; }
+        // เข้ากันได้กับข้อมูลเดิม (ตรงกับ resolveAccess): มีสิทธิ์หัวข้อ = เข้า Dashboard ได้
+        if (!modules.dashboard && SECTIONS.some((s) => perms[s].v)) modules.dashboard = "use";
         return {
           email: f.email?.stringValue || d.name.split('/').pop() || '',
           role: f.role?.stringValue || 'member',
