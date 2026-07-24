@@ -6,7 +6,7 @@ export const SESSION_COOKIE = "cf_session";
 export const STATE_COOKIE = "cf_oauth_state";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 วัน
 
-import { type Perms, type Section, ALL_PERMS, NO_PERMS, normalizePerms, canView, canEdit, canDelete } from "./sections";
+import { type Perms, type Section, SECTIONS, ALL_PERMS, NO_PERMS, normalizePerms, canView, canEdit, canDelete } from "./sections";
 export * from "./sections";
 
 import { type ModuleAccess, normalizeModules } from "./modules";
@@ -71,6 +71,8 @@ export async function resolveAccess(email: string): Promise<{ role: string; perm
       let modules: ModuleAccess;
       try { modules = normalizeModules(doc?.fields?.modules?.stringValue ? JSON.parse(doc.fields.modules.stringValue) : undefined); }
       catch { modules = {}; }
+      // เข้ากันได้กับข้อมูลเดิม: ยังไม่เคยตั้ง dashboard แต่มีสิทธิ์หัวข้ออยู่ → ให้เข้า Dashboard ได้
+      if (!modules.dashboard && SECTIONS.some((s) => perms[s].v)) modules.dashboard = "use";
       return { role, perms, modules };
     }
   } catch { /* ตกไปเช็คโดเมน */ }

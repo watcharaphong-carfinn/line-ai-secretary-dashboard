@@ -82,6 +82,8 @@ export default function UsersPage() {
 
   const chk: React.CSSProperties = { width: 16, height: 16, cursor: "pointer" };
   const anyView = SECTIONS.some(s => form.perms[s].v);
+  // มีสิทธิ์อะไรสักอย่าง = บันทึกได้ (หัวข้อใน Dashboard หรือเข้าโมดูลใดก็ได้)
+  const anyAccess = anyView || MODULE_ROLES.some(m => form.modules[m.id]);
 
   return (
     <>
@@ -169,7 +171,7 @@ export default function UsersPage() {
 
             {/* สิทธิ์รายโมดูล — คุมการเข้าใช้ Agent / ราคารถ จากที่เดียว */}
             <div style={{ marginTop: 18, borderTop: "1px solid #F1F5F9", paddingTop: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>เข้าใช้โมดูลอื่น</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>เข้าใช้โมดูล (เลือกได้ว่าเปิดแอปไหนได้บ้าง)</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                 {MODULE_ROLES.map(m => (
                   <label key={m.id} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
@@ -185,19 +187,19 @@ export default function UsersPage() {
                   </label>
                 ))}
               </div>
-              <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* กำหนดที่นี่ที่เดียว — ผู้ใช้เข้า Agent / ราคารถ ได้เลย ไม่ต้องเพิ่มซ้ำในแต่ละแอป (มีผลรอบ login ถัดไป)</div>
+              <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* กำหนดที่นี่ที่เดียวทุกโมดูล — ไม่ต้องเพิ่มซ้ำในแต่ละแอป · ตารางติ๊กด้านบนคือรายละเอียดสิทธิ์ &quot;ภายใน Dashboard&quot; (มีผลรอบ login ถัดไป)</div>
             </div>
 
             {(() => {
               const noEmail = !editing && !form.email.trim();
-              const off = busy || noEmail || !anyView;
+              const off = busy || noEmail || !anyAccess;
               return (<>
                 <button onClick={save} disabled={off}
                   style={{ marginTop: 14, border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: off ? "default" : "pointer",
                     background: off ? "#CBD5E1" : "#2563EB", color: "#fff" }}>
                   {busy ? "กำลังบันทึก…" : editing ? "อัปเดตสิทธิ์" : "เพิ่มผู้ใช้"}
                 </button>
-                {!anyView && !noEmail && <span style={{ marginLeft: 10, fontSize: 12, color: "#D97706" }}>ต้องเลือกสิทธิ์ &quot;ดู&quot; อย่างน้อย 1 หัวข้อ</span>}
+                {!anyAccess && !noEmail && <span style={{ marginLeft: 10, fontSize: 12, color: "#D97706" }}>ต้องให้สิทธิ์อย่างน้อย 1 อย่าง (หัวข้อ หรือ โมดูล)</span>}
               </>);
             })()}
           </div>

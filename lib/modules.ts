@@ -91,8 +91,9 @@ export function currentModuleId(pathname: string): ModuleId {
 // dashboard ไม่อยู่ในนี้ — คุมด้วย perms รายหัวข้อ (ของเดิม)
 export type ModuleAccess = Partial<Record<ModuleId, string>>;
 
-/** ระดับสิทธิ์ที่เลือกได้ของแต่ละโมดูล (ใช้สร้าง dropdown ในหน้า /users) */
+/** ระดับสิทธิ์ที่เลือกได้ของแต่ละโมดูล (ใช้สร้าง dropdown ในหน้า /users) — ทุกโมดูลเลือกเหมือนกัน */
 export const MODULE_ROLES: { id: ModuleId; label: string; roles: { value: string; label: string }[] }[] = [
+  { id: "dashboard", label: "Dashboard", roles: [{ value: "use", label: "เข้าใช้งาน" }] },
   { id: "agent", label: "Agent · หลังบ้าน", roles: [{ value: "admin", label: "แอดมิน" }] },
   {
     id: "prices", label: "ราคารถ",
@@ -104,10 +105,9 @@ export const MODULE_ROLES: { id: ModuleId; label: string; roles: { value: string
   },
 ];
 
-/** เข้าโมดูลนี้ได้ไหม (super_admin เข้าได้ทุกโมดูล · dashboard เข้าได้เสมอถ้า login ผ่าน) */
+/** เข้าโมดูลนี้ได้ไหม — ทุกโมดูลใช้กติกาเดียวกัน (super_admin เข้าได้ทุกโมดูล) */
 export function hasModule(access: ModuleAccess | null | undefined, id: ModuleId, role?: string): boolean {
   if (role === "super_admin") return true;
-  if (id === "dashboard") return true;
   return !!access?.[id];
 }
 
