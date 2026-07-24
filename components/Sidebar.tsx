@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BarChart3, Briefcase, Megaphone, Radio, ClipboardCheck,
-  Server, Settings, Users, ClipboardList, Network, X, Send, ListChecks,
+  Server, Settings, ClipboardList, Network, X, Send, ListChecks,
 } from "lucide-react";
 import { useDrawer } from "./drawer-context";
 import { useAccess } from "./access-context";
@@ -43,7 +43,6 @@ const NAV_OPS = [
 const NAV_SYS = [
   { href: "/system", label: "โครงสร้างระบบ", icon: Network },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/users", label: "User Management", icon: Users },
   { href: "/audit", label: "Audit Logs", icon: ClipboardList },
 ];
 
