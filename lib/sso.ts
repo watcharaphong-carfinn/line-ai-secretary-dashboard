@@ -1,5 +1,5 @@
 // ── SSO กลางของ Carfinn — ออก/ตรวจ JWT เซ็น RS256 + เปิด JWKS ให้แอปอื่น verify เอง ───
-// internal.carfinn.com = IdP กลาง · ออก cookie `cf_sso` scope `.carfinn.com`
+// internal.carfinn.com = IdP กลาง · ออก cookie `__session` scope `.carfinn.com`
 // แอปอื่น (agent/prices) ดึง public key จาก /.well-known/jwks.json มา verify — ไม่ต้องแชร์ secret
 //
 // คีย์ production: ตั้ง env `SSO_PRIVATE_KEY` เป็น RSA private key (PEM, PKCS8)
@@ -96,24 +96,3 @@ export function ssoCookieDomain(): string | undefined {
   return process.env.SSO_COOKIE_DOMAIN || undefined; // เช่น ".carfinn.com"
 }
 
-// cookie พก return URL ผ่าน OAuth roundtrip (แอปที่ส่ง user มา login จะได้เด้งกลับถูกที่)
-export const RETURN_COOKIE = "cf_sso_return";
-
-// ── กัน open-redirect: return URL ต้องเป็นแอปในเครือเท่านั้น ─────────────────────
-//   อนุญาต host ที่ลงท้าย .carfinn.com (+ carfinn.com) และ localhost ตอน dev
-//   ปรับ allowlist เพิ่มได้ผ่าน env `SSO_ALLOWED_RETURN_HOSTS` (คั่นด้วย ,)
-export function isAllowedReturn(returnUrl: string | null | undefined): boolean {
-  if (!returnUrl) return false;
-  let u: URL;
-  try { u = new URL(returnUrl); } catch { return false; }
-  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
-  const host = u.hostname.toLowerCase();
-
-  const extra = (process.env.SSO_ALLOWED_RETURN_HOSTS || "")
-    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-  if (extra.includes(host)) return true;
-
-  if (host === "carfinn.com" || host.endsWith(".carfinn.com")) return true;
-  if (host === "localhost" || host === "127.0.0.1") return true; // dev
-  return false;
-}

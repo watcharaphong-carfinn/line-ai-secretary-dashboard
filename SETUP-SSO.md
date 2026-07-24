@@ -1,84 +1,116 @@
-# Carfinn Internal Portal — SSO Setup & Deploy Runbook
+# Carfinn Internal Portal — สถาปัตยกรรม & วิธีดูแล
 
-รวม 3 แอปเป็น portal เดียวแบบ Google: **login ครั้งเดียว (SSO) + ปุ่ม waffle สลับโมดูลทุกแอป**
-IdP กลาง = `internal.carfinn.com` (แอปนี้) ออก JWT RS256 → cookie `cf_sso` scope `.carfinn.com`
+`internal.carfinn.com` = **portal เดียว** รวม 3 โมดูล (Dashboard / Agent / ราคารถ)
+เข้าเว็บเดียว URL ไม่เปลี่ยน แถบบนเดียว สลับโมดูลด้วยปุ่ม waffle · **login ครั้งเดียว** (SSO)
 
 ```
-                    ┌─────────────────────────────┐
-   login ครั้งเดียว → │ internal.carfinn.com  (IdP) │  ออก cf_sso (.carfinn.com)
-                    │  · /.well-known/jwks.json   │  + Firebase custom token
-                    └──────────────┬──────────────┘
-        ┌──────────────────────────┼──────────────────────────┐
-        ▼ verify JWKS              ▼ verify JWKS               ▼ custom token
-  admin-agent.carfinn.com    (dashboard เอง)            carprice.carfinn.com
-  (Express verify)                                       (Firebase signInWithCustomToken)
+                    internal.carfinn.com  (Next.js บน Cloud Run asia-southeast1)
+                    ├─ /            Dashboard (native — sidebar ของตัวเอง)
+                    ├─ /agent       <iframe> admin-agent.carfinn.com
+                    └─ /prices      <iframe> carprice.carfinn.com
+                       ▲ แถบบนเดียว (PortalTopbar) พาดเต็มความกว้าง — โมดูลในกรอบซ่อนแถบตัวเอง
 ```
 
 ---
 
-## 1) สร้าง SSO keypair (ทำครั้งเดียว)
+## 1. โดเมน & การ deploy
 
-```bash
-# private key (เก็บเป็นความลับ! ใส่ใน SSO_PRIVATE_KEY ของ dashboard เท่านั้น)
-openssl genpkey -algorithm RSA -pkcs8 -out sso-private.pem -pkeyopt rsa_keygen_bits:2048
+| ส่วน | อยู่ที่ | deploy ยังไง |
+|---|---|---|
+| **Dashboard / portal** | Cloud Run `line-ai-secretary-dashboard` (asia-southeast1, project `key-phoenix-492007-b2`) | **git push → GitHub Actions** (`.github/workflows/deploy.yml`) |
+| **Agent API** | Cloud Run `carfinn-agent-api` (asia-southeast1, project `carfinn-agent`) | `gcloud run deploy carfinn-agent-api --source . --region asia-southeast1` *(ห้ามใส่ `--set-env-vars`/`--set-secrets` — จะทับ config เดิม)* |
+| **Agent admin (หน้าเว็บ)** | Firebase Hosting `carfinn-agent-admin` | `npm run build --workspace @cf/admin && firebase deploy --only hosting:admin --project carfinn-agent` |
+| **ราคารถ** | Firebase Hosting `carfinn-carprice` | `cd web && firebase deploy --only hosting --project carfinn-carprice` |
+
+**โดเมน `internal.carfinn.com`** = Cloud Run **domain mapping** (ไม่ใช่ Firebase Hosting)
+DNS อยู่ที่ **Cloudflare**: `internal` CNAME → `ghs.googlehosted.com` (**DNS only** เมฆเทา)
+
+> ⚠️ **gcloud ในเครื่องต้องตั้ง Python ก่อน** (ไม่งั้นขึ้น "Python was not found"):
+> `export CLOUDSDK_PYTHON="/c/Users/DEVIL/AppData/Local/Programs/Python/Python312/python.exe"`
+
+> ⚠️ domain mapping อาจ **หลุดชั่วคราว ~5 นาทีหลัง deploy dashboard** แล้วกลับมาเอง (ข้อจำกัดของ Cloud Run domain mapping)
+
+---
+
+## 2. SSO (login ครั้งเดียว)
+
+**IdP = portal** ออก JWT เซ็น RS256 ใส่ cookie **`__session`** (domain `.carfinn.com`, อายุ 8 ชม.)
+
+> ชื่อ `__session` **ห้ามเปลี่ยน** — Firebase Hosting (agent/prices) ส่งต่อ cookie ได้ **แค่ชื่อนี้ชื่อเดียว** cookie อื่นถูกตัดทิ้ง
+
+- public key เผยแพร่ที่ `https://internal.carfinn.com/.well-known/jwks.json`
+- **Agent** verify เองผ่าน JWKS → `POST /api/admin/sso-login` แลกเป็น admin token ของตัวเอง (frontend เรียกอัตโนมัติตอนโหลด)
+- **ราคารถ** — endpoint `/api/auth/firebase-token` (ออก Firebase custom token) พร้อมแล้ว แต่ **ยังไม่เปิดใช้** เพราะยังไม่ได้สร้าง service account ของ `carfinn-carprice` → ตอนนี้ราคารถใช้ Google login ของตัวเอง (ไม่พัง แค่ต้องกดครั้งเดียว)
+
+**cookie ที่ portal ใช้**
+| cookie | ใช้ทำอะไร |
+|---|---|
+| `cf_session` | session ของ portal เอง (HMAC, 7 วัน) |
+| `__session` | SSO token ส่งให้โมดูลอื่น (RS256 JWT, 8 ชม.) |
+| `cf_oauth_state` | กัน CSRF ตอน OAuth (ชั่วคราว 30 นาที) |
+
+---
+
+## 3. จัดการผู้ใช้ + สิทธิ์ (รวมที่เดียว)
+
+ทำที่ **portal → จัดการผู้ใช้ (`/users`)** ที่เดียวจบ ไม่ต้องเพิ่มซ้ำในแต่ละแอป
+
+เก็บใน Firestore `users/{email}` (project `key-phoenix-492007-b2`):
+```jsonc
+{
+  "role":  "member | super_admin",
+  "perms": { "central": {v,e,d}, ... },   // สิทธิ์รายหัวข้อใน Dashboard
+  "modules": {                            // สิทธิ์เข้าโมดูลอื่น
+    "agent":  "admin",                    // ว่าง/ไม่มี = ไม่ให้เข้า
+    "prices": "user | finance_editor | super_admin"
+  }
+}
 ```
 
-> ⚠️ ห้าม commit ไฟล์นี้ / ห้ามพิมพ์ค่าในแชต · ถ้าหลุดต้อง rotate (สร้างใหม่ + อัปเดต env)
-> JWKS (public key) เผยแพร่อัตโนมัติที่ `/.well-known/jwks.json` — ไม่ต้องตั้งเอง
+ไหลไปยังไง — **ทางเดียว ไม่มีลัด**:
+```
+users/{email}.modules → resolveAccess() → cf_session + __session(claim modules) → โมดูลปลายทางเชื่อ token
+```
+- โค้ดสิทธิ์โมดูลรวมอยู่ที่ **`lib/modules.ts` ที่เดียว** (`ModuleAccess` / `MODULE_ROLES` / `hasModule()` / `normalizeModules()`)
+- ปุ่ม waffle ซ่อนโมดูลที่ผู้ใช้ไม่มีสิทธิ์
+- **เปลี่ยนสิทธิ์แล้วมีผลรอบ login ถัดไป** ของผู้ใช้คนนั้น
+- Agent: มีสิทธิ์จาก portal → สร้าง record ใน `admin_users` ให้อัตโนมัติ
+- ⚠️ **ราคารถยังไม่บังคับใช้ค่านี้** (ยังอ่าน user ของตัวเองใน Firestore `carfinn-carprice`) — รอทำ SA แล้ว sync
 
-## 2) Environment variables
+---
 
-### dashboard (IdP — Cloud Run)
-| env | ค่า | หมายเหตุ |
-|---|---|---|
-| `SSO_PRIVATE_KEY` | เนื้อ `sso-private.pem` (PEM ทั้งก้อน) | ถ้าไม่ตั้ง = gen ชั่วคราว (dev เท่านั้น) |
-| `SSO_COOKIE_DOMAIN` | `.carfinn.com` | ให้ cookie ข้าม subdomain |
-| `SSO_ALLOWED_RETURN_HOSTS` | (ไม่ต้อง ถ้าเป็น *.carfinn.com) | เพิ่ม host นอกเครือถ้าจำเป็น |
-| `CARPRICE_SA_CLIENT_EMAIL` | client_email ของ SA project `carfinn-carprice` | ดูข้อ 3 |
-| `CARPRICE_SA_PRIVATE_KEY` | private_key ของ SA เดียวกัน (PEM) | ดูข้อ 3 |
-| `CARPRICE_ORIGIN` | `https://carprice.carfinn.com` | CORS ของ custom-token endpoint (default นี้อยู่แล้ว) |
-| (เดิม) `GOOGLE_CLIENT_ID/SECRET`, `AUTH_SECRET`, `DASHBOARD_URL=https://internal.carfinn.com`, `ALLOWED_DOMAIN=carfinn.com` | | ต้องมีอยู่แล้ว |
+## 4. Environment variables
 
-### agent api (`@cf/api` — Cloud Run)
+**Dashboard (Cloud Run)** — ตั้งใน `.github/workflows/deploy.yml`
 | env | ค่า |
 |---|---|
-| `SSO_ISSUER` | `https://internal.carfinn.com` (default ถูกแล้ว) |
-| `SSO_JWKS_URL` | `https://internal.carfinn.com/.well-known/jwks.json` (default ถูกแล้ว) |
+| `DASHBOARD_URL` | `https://internal.carfinn.com` (= issuer ของ SSO token) |
+| `SSO_COOKIE_DOMAIN` | `.carfinn.com` |
+| `ALLOWED_DOMAIN` | `carfinn.com` |
+| `AUTH_ENABLED` | `true` |
+| secrets | `SSO_PRIVATE_KEY`, `AUTH_SECRET`, `GOOGLE_CLIENT_SECRET`, `DASHBOARD_API_KEY`, `GCS_*` (Secret Manager) |
+| *(ยังไม่ตั้ง)* | `CARPRICE_SA_CLIENT_EMAIL`, `CARPRICE_SA_PRIVATE_KEY` — สำหรับ SSO ราคารถ |
 
-> ไม่ต้องแชร์ secret ใดๆ — agent verify ด้วย public key จาก JWKS เอง
+**Agent API** — ใช้ค่า default ในโค้ด ไม่ต้องตั้งเพิ่ม
+`SSO_ISSUER=https://internal.carfinn.com` · `SSO_JWKS_URL=https://internal.carfinn.com/.well-known/jwks.json`
 
-### ราคารถ (static) — ไม่มี env (ค่าฝังใน `app.js`: `SSO_IDP=https://internal.carfinn.com`)
+**OAuth**: redirect URI ที่ต้องมีใน Google client → `https://internal.carfinn.com/api/auth/callback`
 
-## 3) Service Account ของ carfinn-carprice (สำหรับ custom token)
+---
 
-ราคารถเป็น static อ่าน httpOnly cookie ไม่ได้ → IdP ออก **Firebase custom token** ให้แทน ต้องใช้ SA ที่มีสิทธิ์ mint:
+## 5. งานที่ยังเหลือ
+
+- [ ] สร้าง SA `carprice-sso@carfinn-carprice` (+ key → Secret Manager) แล้วตั้ง `CARPRICE_SA_*` → เปิด SSO + บังคับสิทธิ์ของราคารถ
+      *(ต้องทำผ่าน gcloud/Console แบบ interactive — งาน IAM บังคับ reauth)*
+- [ ] **rotate secrets ของ `carfinn-agent`** ที่เคยหลุด (DB_PASS / ENCRYPTION_KEY / ADMIN_JWT_SECRET / STORAGE keys)
+- [ ] ถ้า domain mapping หลุดบ่อยเกินรับได้ → ย้ายไป Load Balancer
+
+---
+
+## 6. เช็คสุขภาพระบบ (คำสั่งเร็ว)
 
 ```bash
-# สร้าง SA + ให้สิทธิ์ Service Account Token Creator ใน project carfinn-carprice
-gcloud iam service-accounts create carprice-sso --project carfinn-carprice
-gcloud projects add-iam-policy-binding carfinn-carprice \
-  --member="serviceAccount:carprice-sso@carfinn-carprice.iam.gserviceaccount.com" \
-  --role="roles/iam.serviceAccountTokenCreator"
-gcloud iam service-accounts keys create carprice-sa.json \
-  --iam-account carprice-sso@carfinn-carprice.iam.gserviceaccount.com
+curl -s https://internal.carfinn.com/.well-known/jwks.json | head -c 80   # JWKS ต้องมี key
+curl -s -o /dev/null -w "%{http_code}\n" https://internal.carfinn.com/login   # ต้อง 200
+curl -s -o /dev/null -w "%{http_code}\n" -X POST https://admin-agent.carfinn.com/api/admin/sso-login  # ต้อง 401 (ไม่มี cookie)
 ```
-เอา `client_email` → `CARPRICE_SA_CLIENT_EMAIL`, `private_key` → `CARPRICE_SA_PRIVATE_KEY`
-
-> ถ้าไม่ตั้ง SA: endpoint ตอบ 503 ราคารถจะ **fallback เป็น Google login เดิม** (ไม่พัง แค่ไม่ silent)
-
-## 4) DNS
-- `internal.carfinn.com` → Cloud Run ของ dashboard (custom domain mapping)
-- `admin-agent.carfinn.com`, `carprice.carfinn.com` — มีอยู่แล้ว
-
-## 5) Deploy (ตามลำดับ)
-1. **dashboard** ก่อน (IdP ต้องออนไลน์ให้ JWKS พร้อม) → ตั้ง env ข้อ 2 → deploy → เช็ค `https://internal.carfinn.com/.well-known/jwks.json` ได้ 200
-2. **agent** → deploy (ตั้ง SSO_* ถ้าจะ override default)
-3. **ราคารถ** → `firebase deploy` (web/) — [[account-hygiene]] เช็ค account ก่อน
-
-## 6) ทดสอบหลัง deploy (end-to-end)
-- login ที่ internal.carfinn.com → กด waffle → เข้า Agent: ต้อง **ไม่ต้อง login ซ้ำ** (silent /api/admin/sso-login)
-- เข้า ราคารถ: ต้อง signInWithCustomToken เงียบ (ถ้าตั้ง SA แล้ว) — ดู Network `/api/auth/firebase-token` = 200
-- เช็ค cookie `cf_sso` domain = `.carfinn.com`
-
-## สถานะโค้ด (ยังไม่ deploy)
-ทุกอย่าง typecheck ผ่าน + เทสต์ local แล้ว — launcher ครบ 3 แอป · SSO dashboard↔agent ครบ · prices bridge code-complete (รอ SA key)

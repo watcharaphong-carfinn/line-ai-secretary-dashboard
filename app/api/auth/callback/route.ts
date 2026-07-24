@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { cfg, signSession, verifySession, resolveAccess, logAudit, SESSION_COOKIE, STATE_COOKIE } from "@/lib/auth";
-import { issueSsoToken, SSO_COOKIE, ssoCookieDomain, RETURN_COOKIE, isAllowedReturn } from "@/lib/sso";
+import { issueSsoToken, SSO_COOKIE, ssoCookieDomain } from "@/lib/sso";
 
 export const dynamic = "force-dynamic";
 
@@ -55,15 +55,14 @@ export async function GET(req: Request) {
     //   ตั้ง cookie + ลบ state บน response โดยตรง (NextResponse) — กัน Set-Cookie หลุด
     const token = signSession({ email, name: claims.name || email, role: access.role, perms: access.perms, modules: access.modules }, cfg.authSecret);
 
-    // ปลายทาง: ถ้ามาจากแอปอื่นแบบ SSO (มี return cookie ที่ผ่านการตรวจ) → เด้งกลับแอปนั้น ไม่งั้นหน้าแรก
-    const rawReturn = jar.get(RETURN_COOKIE)?.value;
-    const res = isAllowedReturn(rawReturn) ? NextResponse.redirect(rawReturn!, 302) : redirect("/");
+
+    const res = redirect("/");
 
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60,
     });
 
-    // ── SSO ข้าม subdomain: ออก cookie `cf_sso` (JWT RS256) scope `.carfinn.com` ──
+    // ── SSO ข้าม subdomain: ออก cookie `__session` (JWT RS256) scope `.carfinn.com` ──
     //   แอปอื่น (agent/prices) verify เองผ่าน JWKS — ไม่ต้อง login ซ้ำ
     const ssoToken = issueSsoToken({ email, name: claims.name || email, role: access.role, perms: access.perms, modules: access.modules }, cfg.dashboardUrl);
     res.cookies.set(SSO_COOKIE, ssoToken, {
@@ -72,7 +71,6 @@ export async function GET(req: Request) {
     });
 
     res.cookies.delete(STATE_COOKIE);
-    res.cookies.delete(RETURN_COOKIE);
     return res;
   } catch {
     return redirect("/login?error=server");
