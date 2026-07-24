@@ -1,19 +1,17 @@
 "use client";
-// ── แถบบนคงที่ของ shell (โมดูลฝังใน iframe ใต้แถบนี้) ───────────────────────────
-// แถบนี้อยู่ใน (embed)/layout → คงที่ตลอด สลับโมดูลแล้วไม่ reload/ขยับ
-// เป็นแถบเดียวของทั้งพอร์ทัล (แอปในกรอบซ่อนแถบตัวเองเมื่อถูกฝัง)
+// ── แถบบนกลางของ portal — ใช้ร่วมกันทั้ง Dashboard และโมดูลที่ฝัง (shell) ─────────
+// พาดเต็มความกว้างด้านบนสุดเสมอ (sidebar ของแต่ละโมดูลอยู่ใต้แถบนี้) → ทุกหน้าโครงเดียวกัน
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import AppLauncher from "./AppLauncher";
 import { MODULES, currentModuleId } from "@/lib/modules";
 
 interface Me { email: string; name?: string }
 
-export default function EmbedTopbar() {
+export default function PortalTopbar({ onMenu }: { onMenu?: () => void }) {
   const pathname = usePathname();
-  const cur = currentModuleId(pathname);
-  const mod = MODULES.find((m) => m.id === cur);
+  const mod = MODULES.find((m) => m.id === currentModuleId(pathname));
 
   const [user, setUser] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
@@ -31,17 +29,28 @@ export default function EmbedTopbar() {
   const initial = ((user?.name || user?.email || "U").trim()[0] || "U").toUpperCase();
 
   return (
-    <header
-      style={{
-        height: 64, flexShrink: 0, background: "#fff",
-        borderBottom: "1px solid #E2E8F0",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 28px",
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#0F172A", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mod?.label ?? "CarFinn AI"}</div>
-        <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.2 }}>{mod?.sublabel ?? ""}</div>
+    <header style={{
+      height: 64, flexShrink: 0, background: "#fff",
+      borderBottom: "1px solid #E2E8F0",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "0 28px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        {onMenu && (
+          <button className="mobile-only" onClick={onMenu} aria-label="เปิดเมนู" style={{
+            width: 38, height: 38, borderRadius: 9, flexShrink: 0,
+            border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <Menu size={19} color="#334155" />
+          </button>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#0F172A", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {mod?.label ?? "CarFinn AI"}
+          </div>
+          <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.2 }}>{mod?.sublabel ?? ""}</div>
+        </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>

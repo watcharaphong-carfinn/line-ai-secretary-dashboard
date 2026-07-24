@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import EmbedTopbar from "@/components/EmbedTopbar";
+import PortalTopbar from "@/components/PortalTopbar";
 import { cfg, verifySession, SESSION_COOKIE } from "@/lib/auth";
 
 // โมดูลที่ฝังใน shell (agent/prices) — แถบบนคงที่ + iframe เต็มจอ
@@ -14,7 +14,7 @@ export default async function EmbedLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F8FAFC" }}>
-      <EmbedTopbar />
+      <PortalTopbar />
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
     </div>
   );
