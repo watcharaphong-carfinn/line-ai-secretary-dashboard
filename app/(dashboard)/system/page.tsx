@@ -1,5 +1,4 @@
 "use client";
-import Topbar from "@/components/Topbar";
 import {
   Database, Bot, LayoutGrid, ShieldCheck, FileSpreadsheet, MessageCircle,
   Radio, CheckCircle2, Clock, ArrowRight,
@@ -84,7 +83,6 @@ const MENU_MAP = [
 export default function SystemPage() {
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "โครงสร้างระบบ"]} title="โครงสร้างระบบ · System" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         <div style={{ fontSize: 12.5, color: "#94A3B8", marginTop: -4 }}>

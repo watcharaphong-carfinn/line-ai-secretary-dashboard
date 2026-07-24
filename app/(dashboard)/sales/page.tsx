@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Send, Users, XCircle, ListChecks } from "lucide-react";
 import Link from "next/link";
-import Topbar from "@/components/Topbar";
 
 // ชุดสี categorical ผ่าน validator (worst CVD ΔE 8.6) — ชุดเดียวกับ StatusDonut
 const PALETTE = ["#2563EB", "#D97706", "#7C3AED", "#059669", "#DC2626", "#0891B2", "#DB2777"];
@@ -13,7 +12,6 @@ const GREY = "#94A3B8";
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "งานเซล · สรุป"]} title="งานเซล · สรุปการส่งงาน" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
         {children}
       </div>

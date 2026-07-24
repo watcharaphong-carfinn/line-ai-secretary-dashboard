@@ -1,11 +1,9 @@
 "use client";
-import Topbar from "@/components/Topbar";
 import { ShieldAlert } from "lucide-react";
 
 export default function NoAccessPage() {
   return (
     <>
-      <Topbar breadcrumb={["ไม่มีสิทธิ์"]} title="ยังไม่ได้รับสิทธิ์" />
       <div className="page-body" style={{ padding: "26px 28px" }}>
         <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "40px 24px", textAlign: "center", maxWidth: 520, margin: "40px auto" }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: "#FFF7ED", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>

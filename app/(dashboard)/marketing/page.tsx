@@ -4,13 +4,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { MessageCircle, Inbox, Send, Megaphone, Wallet, TrendingUp } from "lucide-react";
-import Topbar from "@/components/Topbar";
 
 // ห่อทุก state ด้วยโครงเดียวกับหน้าอื่น (Topbar + page-body) เพื่อให้มีขอบ/หัวข้อเหมือนกัน
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "การตลาด · Lead"]} title="การตลาดออนไลน์ · Lead" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
         {children}
       </div>

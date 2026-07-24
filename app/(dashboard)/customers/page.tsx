@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Topbar from "@/components/Topbar";
 import { Hash, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, X } from "lucide-react";
 
 const TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -117,7 +116,6 @@ export default function CustomersPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "ฐานข้อมูลลูกค้า"]} title="ฐานข้อมูลลูกค้า · Customers" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {err && (

@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Topbar from "@/components/Topbar";
 import { ClipboardList, RefreshCw, AlertCircle, LogIn, LogOut, UserPlus, UserMinus, ShieldAlert, ShieldOff } from "lucide-react";
 
 interface AuditRow { ts: string; action: string; actor: string; detail: string; }
@@ -39,7 +38,6 @@ export default function AuditPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "Audit Logs"]} title="Audit Logs · บันทึกการใช้งาน" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 18 }}>
 
         <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "12px 18px", fontSize: 13, color: "#64748B", display: "flex", gap: 9, alignItems: "center" }}>

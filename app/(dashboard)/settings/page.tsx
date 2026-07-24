@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import Topbar from "@/components/Topbar";
 import { Save, Eye, EyeOff, CheckCircle } from "lucide-react";
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
@@ -90,7 +89,6 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "Settings"]} title="Settings · ตั้งค่าระบบ" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         <Section title="LINE Bot Configuration" sub="ตั้งค่า LINE Messaging API">

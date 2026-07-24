@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Topbar from "@/components/Topbar";
 import DealSummary from "@/components/DealSummary";
 import StatusDonut from "@/components/StatusDonut";
 import {
@@ -156,7 +155,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["งานส่วนกลาง", "ภาพรวม"]} title="ภาพรวม · ยอดปิด (งานส่วนกลาง)" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* error banner */}

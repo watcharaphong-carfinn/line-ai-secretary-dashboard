@@ -7,6 +7,7 @@
 // ถ้าไม่มี env (เฉพาะ dev/local) → สร้างคีย์ชั่วคราวในหน่วยความจำ (JWKS จะตรงกันในโปรเซสเดียว)
 import crypto, { type KeyObject } from "crypto";
 import { type Perms } from "./sections";
+import { type ModuleAccess } from "./modules";
 
 // ต้องชื่อ __session — Firebase Hosting (agent/prices) ส่งต่อได้แค่ cookie ชื่อนี้เท่านั้น
 export const SSO_COOKIE = "__session";
@@ -18,6 +19,7 @@ export interface SsoClaims {
   name: string;
   role: string;
   perms?: Perms;
+  modules?: ModuleAccess; // สิทธิ์รายโมดูล (agent/prices อ่านจากตรงนี้)
   iat: number;
   exp: number;
 }
@@ -55,13 +57,13 @@ function thumbprint(pub: KeyObject): string {
 }
 
 // ── ออก token ───────────────────────────────────────────────────────────────
-export function issueSsoToken(u: { email: string; name?: string; role: string; perms?: Perms }, issuer: string): string {
+export function issueSsoToken(u: { email: string; name?: string; role: string; perms?: Perms; modules?: ModuleAccess }, issuer: string): string {
   const { priv, kid } = keys();
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT", kid };
   const payload: SsoClaims = {
     iss: issuer, sub: u.email.toLowerCase(), name: u.name || u.email,
-    role: u.role, perms: u.perms, iat: now, exp: now + SSO_TTL_SEC,
+    role: u.role, perms: u.perms, modules: u.modules, iat: now, exp: now + SSO_TTL_SEC,
   };
   const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
   const sig = crypto.sign("RSA-SHA256", Buffer.from(signingInput), priv).toString("base64url");

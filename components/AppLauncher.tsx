@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, Car, Wallet, Grip } from "lucide-react";
-import { MODULES, moduleHref, currentModuleId, type PortalModule } from "@/lib/modules";
+import { MODULES, moduleHref, currentModuleId, hasModule, type ModuleAccess, type PortalModule } from "@/lib/modules";
 
 const ICONS = {
   dashboard: LayoutDashboard,
@@ -16,8 +16,18 @@ const ICONS = {
 export default function AppLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [access, setAccess] = useState<{ role?: string; modules?: ModuleAccess }>({});
   const ref = useRef<HTMLDivElement>(null);
   const current = currentModuleId(pathname);
+
+  // สิทธิ์รายโมดูล (กำหนดรวมที่หน้า /users) → โชว์เฉพาะโมดูลที่เข้าได้
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json())
+      .then((d) => setAccess({ role: d.user?.role, modules: d.user?.modules }))
+      .catch(() => {});
+  }, []);
+
+  const visible = MODULES.filter((m) => m.comingSoon || hasModule(access.modules, m.id, access.role));
 
   // ปิดเมื่อคลิกนอกกล่อง / กด Esc
   useEffect(() => {
@@ -64,7 +74,7 @@ export default function AppLauncher() {
             แอปของ CARFINN
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
-            {MODULES.map((m) => (
+            {visible.map((m) => (
               <Tile key={m.id} m={m} active={m.id === current} onNavigate={() => setOpen(false)} />
             ))}
           </div>

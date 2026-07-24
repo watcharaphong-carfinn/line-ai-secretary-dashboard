@@ -1,20 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
-import Topbar from "@/components/Topbar";
 import { Shield, AlertCircle, RefreshCw, Crown, Trash2, UserPlus, Pencil, X, Eye, Edit3, Trash, Copy, Mail } from "lucide-react";
 import { SECTIONS, SECTION_LABELS, NO_PERMS, normalizePerms, type Perms, type Section } from "@/lib/sections";
 
-interface UserRow { email: string; role: string; perms: Perms; addedBy?: string; addedAt?: string; }
+import { MODULE_ROLES, type ModuleAccess } from "@/lib/modules";
+interface UserRow { email: string; role: string; perms: Perms; modules: ModuleAccess; addedBy?: string; addedAt?: string; }
 interface Resp { users: UserRow[]; superAdmin: string; warn?: string }
 
-const emptyForm = () => ({ email: "", perms: NO_PERMS() });
+const emptyForm = () => ({ email: "", perms: NO_PERMS(), modules: {} as ModuleAccess });
 
 export default function UsersPage() {
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [myRole, setMyRole] = useState<string | null>(null);
-  const [form, setForm] = useState<{ email: string; perms: Perms }>(emptyForm());
+  const [form, setForm] = useState<{ email: string; perms: Perms; modules: ModuleAccess }>(emptyForm());
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -51,14 +51,14 @@ export default function UsersPage() {
       return { ...f, perms: p };
     });
   };
-  const startEdit = (u: UserRow) => { setEditing(u.email); setForm({ email: "", perms: normalizePerms(u.perms) }); setMsg(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const startEdit = (u: UserRow) => { setEditing(u.email); setForm({ email: "", perms: normalizePerms(u.perms), modules: { ...(u.modules || {}) } }); setMsg(null); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const cancel = () => { setEditing(null); setForm(emptyForm()); };
 
   const save = async () => {
     const email = editing || `${form.email.trim().toLowerCase()}@carfinn.com`;
     setBusy(true); setMsg(null);
     try {
-      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perms: form.perms }) });
+      const r = await fetch("/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perms: form.perms, modules: form.modules }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       const mailTxt = editing ? "" : j.emailed === true ? " · ส่งอีเมลเชิญแล้ว ✉️" : j.emailed === false ? ` · ⚠️ ส่งอีเมลไม่สำเร็จ (${j.emailError || "ดูข้อความเชิญด้านล่าง"})` : " · (ยังไม่เปิดส่งอีเมลอัตโนมัติ)";
@@ -85,7 +85,6 @@ export default function UsersPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["ผู้ดูแลระบบ", "จัดการผู้ใช้"]} title="จัดการผู้ใช้ · สิทธิ์รายหัวข้อ" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 12, padding: "14px 18px", fontSize: 13.5, color: "#1E40AF", display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -167,6 +166,27 @@ export default function UsersPage() {
               </table>
             </div>
             <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* ติ๊ก แก้ไข/ลบ จะเปิด &quot;ดู&quot; ให้อัตโนมัติ · หน้าส่วนใหญ่ตอนนี้ดูอย่างเดียว (แก้ไข/ลบ มีผลกับ จัดการผู้ใช้/บัญชีโฆษณา)</div>
+
+            {/* สิทธิ์รายโมดูล — คุมการเข้าใช้ Agent / ราคารถ จากที่เดียว */}
+            <div style={{ marginTop: 18, borderTop: "1px solid #F1F5F9", paddingTop: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0F172A", marginBottom: 8 }}>เข้าใช้โมดูลอื่น</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                {MODULE_ROLES.map(m => (
+                  <label key={m.id} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
+                    <span style={{ color: "#475569", fontWeight: 600 }}>{m.label}</span>
+                    <select
+                      value={form.modules[m.id] || ""}
+                      onChange={e => setForm(f => ({ ...f, modules: { ...f.modules, [m.id]: e.target.value } }))}
+                      style={{ border: "1.4px solid #E2E8F0", borderRadius: 9, padding: "8px 11px", fontSize: 13, background: "#fff", minWidth: 190 }}
+                    >
+                      <option value="">— ไม่ให้เข้า —</option>
+                      {m.roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 8 }}>* กำหนดที่นี่ที่เดียว — ผู้ใช้เข้า Agent / ราคารถ ได้เลย ไม่ต้องเพิ่มซ้ำในแต่ละแอป (มีผลรอบ login ถัดไป)</div>
+            </div>
 
             {(() => {
               const noEmail = !editing && !form.email.trim();

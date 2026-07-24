@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import Topbar from "@/components/Topbar";
 import { AlertCircle, X, Search, Clock, Phone, User } from "lucide-react";
 
 const TH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -110,7 +109,6 @@ export default function FollowupPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "ติดตามงานค้าง"]} title="ติดตามงานค้าง · Follow-up" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: -4 }}>

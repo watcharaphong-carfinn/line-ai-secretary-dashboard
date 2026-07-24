@@ -1,4 +1,5 @@
 import { getSessionUser, gate, firestore, logAudit, normalizePerms, NO_PERMS, type Perms } from "@/lib/auth";
+import { normalizeModules, type ModuleAccess } from "@/lib/modules";
 import { sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,7 @@ async function projectId(): Promise<string> {
 }
 const docsBase = (p: string) => `https://firestore.googleapis.com/v1/projects/${p}/databases/(default)/documents`;
 
-interface UserRow { email: string; role: string; perms: Perms; addedBy?: string; addedAt?: string; }
+interface UserRow { email: string; role: string; perms: Perms; modules: ModuleAccess; addedBy?: string; addedAt?: string; }
 
 export async function GET() {
   const g = await gate("admin"); if ("error" in g) return g.error;
@@ -43,10 +44,14 @@ export async function GET() {
         let perms: Perms;
         try { perms = normalizePerms(f.perms?.stringValue ? JSON.parse(f.perms.stringValue) : undefined); }
         catch { perms = NO_PERMS(); }
+        let modules: ModuleAccess;
+        try { modules = normalizeModules(f.modules?.stringValue ? JSON.parse(f.modules.stringValue) : undefined); }
+        catch { modules = {}; }
         return {
           email: f.email?.stringValue || d.name.split('/').pop() || '',
           role: f.role?.stringValue || 'member',
           perms,
+          modules,
           addedBy: f.addedBy?.stringValue,
           addedAt: f.addedAt?.stringValue,
         };
@@ -56,7 +61,7 @@ export async function GET() {
     }
     // seed super admin ถ้ายังไม่มีในลิสต์ (ทุกสิทธิ์)
     if (!users.some(u => u.email.toLowerCase() === SUPER_ADMIN)) {
-      users.unshift({ email: SUPER_ADMIN, role: 'super_admin', perms: normalizePerms(undefined) });
+      users.unshift({ email: SUPER_ADMIN, role: 'super_admin', perms: normalizePerms(undefined), modules: {} });
     }
     // เรียง: super_admin ก่อน แล้วตามอีเมล
     users.sort((a, b) => (a.role === 'super_admin' ? 0 : 1) - (b.role === 'super_admin' ? 0 : 1) || a.email.localeCompare(b.email));
@@ -91,16 +96,18 @@ export async function POST(req: Request) {
   if (email === SUPER_ADMIN) return Response.json({ error: 'เป็น Super Admin อยู่แล้ว' }, { status: 400 });
 
   const perms = normalizePerms(body.perms);
+  const modules = normalizeModules(body.modules);
 
   try {
     const fs = await firestore();
-    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}?updateMask.fieldPaths=email&updateMask.fieldPaths=role&updateMask.fieldPaths=perms&updateMask.fieldPaths=addedBy&updateMask.fieldPaths=addedAt`, {
+    const r = await fetch(`${fs.base}/users/${encodeURIComponent(email)}?updateMask.fieldPaths=email&updateMask.fieldPaths=role&updateMask.fieldPaths=perms&updateMask.fieldPaths=modules&updateMask.fieldPaths=addedBy&updateMask.fieldPaths=addedAt`, {
       method: 'PATCH',
       headers: fs.headers,
       body: JSON.stringify({ fields: {
         email: { stringValue: email },
         role: { stringValue: 'member' },
         perms: { stringValue: JSON.stringify(perms) },
+        modules: { stringValue: JSON.stringify(modules) },
         addedBy: { stringValue: admin.email },
         addedAt: { stringValue: new Date().toISOString() },
       } }),
@@ -119,7 +126,7 @@ export async function POST(req: Request) {
       emailed = res.ok; if (!res.ok) emailError = res.error;
       await logAudit(res.ok ? "invite_sent" : "invite_failed", admin.email, `${email}${res.ok ? "" : " · " + (res.error || "")}`);
     }
-    return Response.json({ ok: true, email, perms, emailed, emailError });
+    return Response.json({ ok: true, email, perms, modules, emailed, emailError });
   } catch (err: unknown) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
   }

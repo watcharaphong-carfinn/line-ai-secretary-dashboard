@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import Topbar from "@/components/Topbar";
 import {
   RefreshCw, CheckCircle, AlertCircle, Clock, MessageSquare, Database, Zap, Bot,
   FileSpreadsheet, ExternalLink, Megaphone,
@@ -120,7 +119,6 @@ export default function BotPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "Bot Management"]} title="Bot Management · ระบบ LINE Bot" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {msg && (

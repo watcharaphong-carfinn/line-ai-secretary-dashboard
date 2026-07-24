@@ -67,14 +67,46 @@ export function moduleHref(m: PortalModule): string {
   return m.internalPath ?? m.externalUrl ?? "/";
 }
 
-/** โมดูลนี้เปิดในหน้าต่างเดียวกันไหม (internal = ใช่, external subdomain = ใช่เช่นกันแต่คนละแอป) */
-export function isExternal(m: PortalModule): boolean {
-  return !m.internalPath && !!m.externalUrl;
-}
-
 /** โมดูลปัจจุบันจาก pathname (สำหรับไฮไลต์ไทล์ที่กำลังใช้) */
 export function currentModuleId(pathname: string): ModuleId {
   if (pathname.startsWith("/agent")) return "agent";
   if (pathname.startsWith("/prices")) return "prices";
   return "dashboard";
+}
+
+// ── สิทธิ์รายโมดูล (จัดการรวมที่ portal → ส่งผ่าน SSO token ให้แต่ละโมดูล) ────────
+// เก็บใน Firestore users/{email}.modules · ค่าว่าง/ไม่มี = ไม่ให้เข้าโมดูลนั้น
+// dashboard ไม่อยู่ในนี้ — คุมด้วย perms รายหัวข้อ (ของเดิม)
+export type ModuleAccess = Partial<Record<ModuleId, string>>;
+
+/** ระดับสิทธิ์ที่เลือกได้ของแต่ละโมดูล (ใช้สร้าง dropdown ในหน้า /users) */
+export const MODULE_ROLES: { id: ModuleId; label: string; roles: { value: string; label: string }[] }[] = [
+  { id: "agent", label: "Agent · หลังบ้าน", roles: [{ value: "admin", label: "แอดมิน" }] },
+  {
+    id: "prices", label: "ราคารถ",
+    roles: [
+      { value: "user", label: "ดูอย่างเดียว" },
+      { value: "finance_editor", label: "แก้เงื่อนไขไฟแนนซ์" },
+      { value: "super_admin", label: "ผู้ดูแล" },
+    ],
+  },
+];
+
+/** เข้าโมดูลนี้ได้ไหม (super_admin เข้าได้ทุกโมดูล · dashboard เข้าได้เสมอถ้า login ผ่าน) */
+export function hasModule(access: ModuleAccess | null | undefined, id: ModuleId, role?: string): boolean {
+  if (role === "super_admin") return true;
+  if (id === "dashboard") return true;
+  return !!access?.[id];
+}
+
+/** รับค่าจากฟอร์ม/Firestore → ModuleAccess ที่สะอาด (ตัดค่าว่าง/โมดูลที่ไม่รู้จักทิ้ง) */
+export function normalizeModules(input: unknown): ModuleAccess {
+  const out: ModuleAccess = {};
+  if (input && typeof input === "object") {
+    for (const { id } of MODULE_ROLES) {
+      const v = (input as Record<string, unknown>)[id];
+      if (typeof v === "string" && v) out[id] = v;
+    }
+  }
+  return out;
 }

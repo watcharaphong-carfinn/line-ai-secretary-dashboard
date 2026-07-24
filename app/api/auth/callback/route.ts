@@ -53,7 +53,7 @@ export async function GET(req: Request) {
 
     // ออก session cookie (พก perms ไปด้วย เพื่อกันเมนู/หน้า/API — เปลี่ยนสิทธิ์แล้วมีผลรอบ login ถัดไป)
     //   ตั้ง cookie + ลบ state บน response โดยตรง (NextResponse) — กัน Set-Cookie หลุด
-    const token = signSession({ email, name: claims.name || email, role: access.role, perms: access.perms }, cfg.authSecret);
+    const token = signSession({ email, name: claims.name || email, role: access.role, perms: access.perms, modules: access.modules }, cfg.authSecret);
 
     // ปลายทาง: ถ้ามาจากแอปอื่นแบบ SSO (มี return cookie ที่ผ่านการตรวจ) → เด้งกลับแอปนั้น ไม่งั้นหน้าแรก
     const rawReturn = jar.get(RETURN_COOKIE)?.value;
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
 
     // ── SSO ข้าม subdomain: ออก cookie `cf_sso` (JWT RS256) scope `.carfinn.com` ──
     //   แอปอื่น (agent/prices) verify เองผ่าน JWKS — ไม่ต้อง login ซ้ำ
-    const ssoToken = issueSsoToken({ email, name: claims.name || email, role: access.role, perms: access.perms }, cfg.dashboardUrl);
+    const ssoToken = issueSsoToken({ email, name: claims.name || email, role: access.role, perms: access.perms, modules: access.modules }, cfg.dashboardUrl);
     res.cookies.set(SSO_COOKIE, ssoToken, {
       httpOnly: true, secure: true, sameSite: "lax", path: "/",
       domain: ssoCookieDomain(), maxAge: 8 * 60 * 60,

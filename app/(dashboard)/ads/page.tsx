@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import Topbar from "@/components/Topbar";
 import Link from "next/link";
 import { Plus, Trash2, KeyRound, CheckCircle2, AlertCircle, RefreshCw, PlugZap, Download, BarChart3, Copy, Pencil, X } from "lucide-react";
 
@@ -150,7 +149,6 @@ export default function AdsPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "โฆษณา · Ads"]} title="โฆษณา · Ads" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: -4 }}>

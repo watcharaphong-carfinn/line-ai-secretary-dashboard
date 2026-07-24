@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const sess = verifySession((await cookies()).get(SESSION_COOKIE)?.value, cfg.authSecret);
     if (sess) {
       const res = NextResponse.redirect(returnUrl, 302);
-      const ssoToken = issueSsoToken({ email: sess.email, name: sess.name, role: sess.role, perms: sess.perms }, cfg.dashboardUrl);
+      const ssoToken = issueSsoToken({ email: sess.email, name: sess.name, role: sess.role, perms: sess.perms, modules: sess.modules }, cfg.dashboardUrl);
       res.cookies.set(SSO_COOKIE, ssoToken, {
         httpOnly: true, secure: true, sameSite: "lax", path: "/",
         domain: ssoCookieDomain(), maxAge: 8 * 60 * 60,

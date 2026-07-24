@@ -1,5 +1,4 @@
 "use client";
-import Topbar from "@/components/Topbar";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -52,7 +51,6 @@ function StatBadge({ label, value, sub, color }: { label: string; value: string;
 export default function AnalyticsPage() {
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "Analytics"]} title="Analytics · วิเคราะห์ประสิทธิภาพ" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Summary */}

@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Hash, X, ChevronUp, ChevronDown, ChevronsUpDown, AlertCircle } from "lucide-react";
-import Topbar from "@/components/Topbar";
 import { rejectReasonOf } from "@/lib/rejectReason";
 
 const TH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -136,7 +135,6 @@ export default function SalesCasesPage() {
 
   return (
     <>
-      <Topbar breadcrumb={["หน้าหลัก", "งานเซล", "รายการส่งเคส"]} title="รายการส่งเคส · งานเซล" />
       <div className="page-body" style={{ padding: "26px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {err && (

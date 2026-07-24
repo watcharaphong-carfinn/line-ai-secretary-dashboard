@@ -9,7 +9,9 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 วัน
 import { type Perms, type Section, ALL_PERMS, NO_PERMS, normalizePerms, canView, canEdit, canDelete } from "./sections";
 export * from "./sections";
 
-export interface SessionUser { email: string; name?: string; role: string; perms?: Perms; exp: number; }
+import { type ModuleAccess, normalizeModules } from "./modules";
+
+export interface SessionUser { email: string; name?: string; role: string; perms?: Perms; modules?: ModuleAccess; exp: number; }
 
 
 const b64url = (s: string | Buffer) => Buffer.from(s).toString("base64url");
@@ -52,9 +54,9 @@ async function gcpProject(): Promise<string> {
 
 // คืน { role, perms } ถ้าอนุญาตให้เข้า, คืน null ถ้าไม่อนุญาต
 //   super admin = ทุกสิทธิ์ · มีใน Firestore = ตามที่ตั้ง · โดเมน carfinn.com (ยังไม่ถูกเพิ่ม) = login ได้แต่ยังไม่มีสิทธิ์
-export async function resolveAccess(email: string): Promise<{ role: string; perms: Perms } | null> {
+export async function resolveAccess(email: string): Promise<{ role: string; perms: Perms; modules: ModuleAccess } | null> {
   const e = email.toLowerCase();
-  if (e === SUPER_ADMIN) return { role: "super_admin", perms: ALL_PERMS() };
+  if (e === SUPER_ADMIN) return { role: "super_admin", perms: ALL_PERMS(), modules: {} }; // super = เข้าได้ทุกโมดูลอยู่แล้ว
 
   try {
     const [t, p] = await Promise.all([gcpToken(), gcpProject()]);
@@ -66,12 +68,15 @@ export async function resolveAccess(email: string): Promise<{ role: string; perm
       let perms: Perms;
       try { perms = normalizePerms(doc?.fields?.perms?.stringValue ? JSON.parse(doc.fields.perms.stringValue) : undefined); }
       catch { perms = NO_PERMS(); }
-      return { role, perms };
+      let modules: ModuleAccess;
+      try { modules = normalizeModules(doc?.fields?.modules?.stringValue ? JSON.parse(doc.fields.modules.stringValue) : undefined); }
+      catch { modules = {}; }
+      return { role, perms, modules };
     }
   } catch { /* ตกไปเช็คโดเมน */ }
 
   const domain = (process.env.ALLOWED_DOMAIN || "").toLowerCase().trim();
-  if (domain && e.endsWith(`@${domain}`)) return { role: "member", perms: NO_PERMS() };
+  if (domain && e.endsWith(`@${domain}`)) return { role: "member", perms: NO_PERMS(), modules: {} };
 
   return null;
 }
