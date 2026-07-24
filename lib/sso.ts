@@ -8,7 +8,8 @@
 import crypto, { type KeyObject } from "crypto";
 import { type Perms } from "./sections";
 
-export const SSO_COOKIE = "cf_sso";
+// ต้องชื่อ __session — Firebase Hosting (agent/prices) ส่งต่อได้แค่ cookie ชื่อนี้เท่านั้น
+export const SSO_COOKIE = "__session";
 const SSO_TTL_SEC = 8 * 60 * 60; // 8 ชม. (สั้นกว่า cf_session เพราะข้ามโดเมน)
 
 export interface SsoClaims {
